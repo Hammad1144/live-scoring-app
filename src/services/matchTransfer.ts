@@ -33,7 +33,9 @@ export async function pickAndImportMatchSummary(db: SQLiteDatabase): Promise<{ m
   });
   if (result.canceled || !result.assets?.length) return null;
 
-  const file = new File(result.assets[0]);
+  const asset = result.assets[0];
+  if (!asset) return null;
+  const file = new File(asset.uri);
   let payload: PortableMatchPackage;
   try {
     payload = JSON.parse(file.textSync()) as PortableMatchPackage;
