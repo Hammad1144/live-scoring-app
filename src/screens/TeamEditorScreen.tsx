@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
-import { getPlayers, getTeam, saveTeam } from '../data/database';
+import { getPlayersV12 as getPlayers, getTeamV12 as getTeam, saveTeamV12 as saveTeam } from '../data/v12Core';
 import { Player } from '../types';
 import { Card, Chip, Empty, Field, PrimaryButton, ScreenHeader } from '../components/UI';
 import { colors } from '../theme';
