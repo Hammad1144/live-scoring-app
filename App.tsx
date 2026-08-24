@@ -3,7 +3,8 @@ import { StyleSheet } from 'react-native';
 import { SafeAreaProvider, SafeAreaView, initialWindowMetrics } from 'react-native-safe-area-context';
 import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
-import { initDatabase, getCurrentInnings, getMatch } from './src/data/database';
+import { getCurrentInnings, getMatch } from './src/data/database';
+import { initDatabaseV12 } from './src/data/v12Core';
 import { colors } from './src/theme';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { PlayersScreen } from './src/screens/PlayersScreen';
@@ -54,7 +55,7 @@ function AppContent() {
 export default function App() {
   return (
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-      <SQLiteProvider databaseName="local_cricket_scorer.db" onInit={initDatabase}>
+      <SQLiteProvider databaseName="local_cricket_scorer.db" onInit={initDatabaseV12}>
         <StatusBar style="light" />
         <AppContent />
       </SQLiteProvider>
