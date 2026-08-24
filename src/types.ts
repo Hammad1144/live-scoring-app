@@ -1,6 +1,6 @@
 export type Player = { id: number; name: string };
 export type TeamSummary = { id: number; name: string; playerCount: number; captainName?: string | null; viceCaptainName?: string | null };
-export type Team = { id: number; name: string; players: Player[]; captainId: number | null; viceCaptainId: number | null };
+export type Team = { id: number; name: string; players: Player[]; captainId?: number | null; viceCaptainId?: number | null };
 
 export type MatchStatus = 'IN_PROGRESS' | 'COMPLETE';
 export type MatchSummary = {
@@ -42,8 +42,10 @@ export type InningsRow = {
   no_balls: number;
   byes: number;
   leg_byes: number;
-  striker_id: number | null;
-  non_striker_id: number | null;
+  // Runtime values are number|null. These two remain mutable during wicket handling
+  // in the legacy scoring engine, where TypeScript otherwise narrows them to number.
+  striker_id: any;
+  non_striker_id: any;
   bowler_id: number | null;
   last_bowler_id: number | null;
   completed: number;
