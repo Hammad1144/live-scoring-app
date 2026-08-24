@@ -1,4 +1,3 @@
-\
 $ErrorActionPreference = "Stop"
 
 Write-Host "Cricket Scorer - Standalone APK Build" -ForegroundColor Green
