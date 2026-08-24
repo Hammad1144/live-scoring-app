@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
-import { createMatch, getTeams } from '../data/database';
+import { createMatch } from '../data/database';
+import { getTeamsV12 as getTeams } from '../data/v12Core';
 import { TeamSummary } from '../types';
 import { Card, Chip, Empty, PrimaryButton, ScreenHeader } from '../components/UI';
 import { colors } from '../theme';

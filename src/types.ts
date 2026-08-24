@@ -1,6 +1,6 @@
 export type Player = { id: number; name: string };
-export type TeamSummary = { id: number; name: string; playerCount: number };
-export type Team = { id: number; name: string; players: Player[] };
+export type TeamSummary = { id: number; name: string; playerCount: number; captainName?: string | null; viceCaptainName?: string | null };
+export type Team = { id: number; name: string; players: Player[]; captainId?: number | null; viceCaptainId?: number | null };
 
 export type MatchStatus = 'IN_PROGRESS' | 'COMPLETE';
 export type MatchSummary = {
@@ -24,6 +24,9 @@ export type MatchRow = {
   result_text: string | null;
   created_at: string;
   completed_at: string | null;
+  import_key?: string | null;
+  team_a_name_snapshot?: string | null;
+  team_b_name_snapshot?: string | null;
 };
 
 export type InningsRow = {
@@ -39,8 +42,10 @@ export type InningsRow = {
   no_balls: number;
   byes: number;
   leg_byes: number;
-  striker_id: number | null;
-  non_striker_id: number | null;
+  // Runtime values are number|null. These two remain mutable during wicket handling
+  // in the legacy scoring engine, where TypeScript otherwise narrows them to number.
+  striker_id: any;
+  non_striker_id: any;
   bowler_id: number | null;
   last_bowler_id: number | null;
   completed: number;
@@ -164,4 +169,74 @@ export type LeaderboardRow = {
   name: string;
   value: number;
   secondary?: string;
+};
+
+export type PortableMatchPackage = {
+  kind: 'local-cricket-scorer-match';
+  schemaVersion: 1;
+  sourceKey: string;
+  exportedAt: string;
+  match: {
+    sourceMatchId: number;
+    teamAId: number;
+    teamBId: number;
+    teamAName: string;
+    teamBName: string;
+    oversLimit: number;
+    battingFirstTeamId: number;
+    status: 'COMPLETE';
+    currentInnings: number;
+    resultText: string | null;
+    createdAt: string;
+    completedAt: string | null;
+  };
+  matchPlayers: Array<{
+    teamId: number;
+    playerId: number;
+    playerName: string;
+    battingOrder: number;
+    isCaptain: number;
+    isViceCaptain: number;
+  }>;
+  innings: Array<{
+    sourceInningsId: number;
+    inningsNo: number;
+    battingTeamId: number;
+    bowlingTeamId: number;
+    runs: number;
+    wickets: number;
+    legalBalls: number;
+    wides: number;
+    noBalls: number;
+    byes: number;
+    legByes: number;
+    strikerId: number | null;
+    nonStrikerId: number | null;
+    bowlerId: number | null;
+    lastBowlerId: number | null;
+    completed: number;
+    target: number | null;
+  }>;
+  deliveries: Array<{
+    sourceInningsId: number;
+    seq: number;
+    overNo: number;
+    ballInOver: number;
+    strikerId: number;
+    nonStrikerId: number;
+    bowlerId: number;
+    batRuns: number;
+    wideRuns: number;
+    noBallRuns: number;
+    byeRuns: number;
+    legByeRuns: number;
+    totalRuns: number;
+    legalBall: number;
+    wicket: number;
+    wicketType: string | null;
+    dismissedPlayerId: number | null;
+    creditedBowler: number;
+    stateBeforeJson: string;
+    createdAt: string;
+  }>;
 };
