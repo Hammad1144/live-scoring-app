@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
-import { deleteMatch, getMatchSummaries } from '../data/database';
+import { getMatchSummaries } from '../data/database';
+import { deleteMatch } from '../data/matchPortability';
 import { MatchSummary } from '../types';
 import { shareMatchSummary, pickAndImportMatchSummary } from '../services/matchTransfer';
 import { Card, Empty, PrimaryButton, ScreenHeader } from '../components/UI';
