@@ -21,8 +21,8 @@ export function TeamEditorScreen({ teamId, onBack, onSaved }: { teamId?: number;
         const t = await getTeam(db, teamId);
         setName(t.name);
         setSelected(t.players.map(p => p.id));
-        setCaptainId(t.captainId);
-        setViceCaptainId(t.viceCaptainId);
+        setCaptainId(t.captainId ?? null);
+        setViceCaptainId(t.viceCaptainId ?? null);
       }
     })();
   }, [db, teamId]);
