@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
-import { deleteTeam, getTeams } from '../data/database';
+import { deleteTeamV12 as deleteTeam, getTeamsV12 as getTeams } from '../data/v12Core';
 import { TeamSummary } from '../types';
 import { Card, Empty, PrimaryButton, ScreenHeader } from '../components/UI';
 import { colors } from '../theme';
