@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "Local Cricket Scorer",
+    "slug": "local-cricket-scorer",
+    "version": "1.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "android": {
+      "package": "com.localcricket.scorer",
+      "versionCode": 2,
+      "softwareKeyboardLayoutMode": "resize"
+    },
+    "ios": {
+      "bundleIdentifier": "com.localcricket.scorer",
+      "supportsTablet": true
+    },
+    "plugins": [
+      "expo-sqlite"
+    ]
+  }
+}
