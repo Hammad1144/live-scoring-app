@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
-import { getLeaderboards } from '../data/database';
+import { getLeaderboardsV12 as getLeaderboards } from '../data/leaderboardsV12';
 import { LeaderboardRow } from '../types';
 import { Card, Chip, Empty, ScreenHeader } from '../components/UI';
 import { colors } from '../theme';
