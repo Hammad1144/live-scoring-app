@@ -19,13 +19,17 @@ export function TeamsScreen({ onBack, onEdit }: { onBack: () => void; onEdit: (i
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <ScreenHeader title="Team Bank" subtitle="Create reusable squads from your 24 players" onBack={onBack} />
+      <ScreenHeader title="Team Bank" subtitle="Create reusable squads from your Player Bank" onBack={onBack} />
       <PrimaryButton label="+ Create Team" onPress={() => onEdit()} />
       <View style={{ height: 12 }} />
       {teams.length === 0 ? <Empty text="No teams yet. Create at least two teams before starting a match." /> : teams.map(t => (
         <Pressable key={t.id} onPress={() => onEdit(t.id)}>
           <Card style={styles.card}>
-            <View style={{ flex: 1 }}><Text style={styles.name}>{t.name}</Text><Text style={styles.meta}>{t.playerCount} players</Text></View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.name}>{t.name}</Text>
+              <Text style={styles.meta}>{t.playerCount} players</Text>
+              {t.captainName || t.viceCaptainName ? <Text style={styles.roles}>{t.captainName ? `C: ${t.captainName}` : ''}{t.captainName && t.viceCaptainName ? '  •  ' : ''}{t.viceCaptainName ? `VC: ${t.viceCaptainName}` : ''}</Text> : null}
+            </View>
             <Pressable onPress={() => remove(t)} hitSlop={12}><Text style={styles.delete}>Delete</Text></Pressable>
           </Card>
         </Pressable>
@@ -38,5 +42,6 @@ const styles = StyleSheet.create({
   card: { marginBottom: 10, flexDirection: 'row', alignItems: 'center' },
   name: { color: colors.text, fontWeight: '800', fontSize: 17 },
   meta: { color: colors.muted, marginTop: 4 },
+  roles: { color: colors.primary, marginTop: 5, fontSize: 11, fontWeight: '700' },
   delete: { color: colors.danger, fontWeight: '700' },
 });
