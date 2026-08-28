@@ -44,6 +44,13 @@ export async function createSeason(db: SQLiteDatabase, name: string, startDate: 
   return Number(result.lastInsertRowId);
 }
 
+export async function deleteSeason(db: SQLiteDatabase, seasonId: number): Promise<void> {
+  const row = await db.getFirstAsync<{ matches: number }>('SELECT COUNT(*) AS matches FROM matches WHERE season_id=?', seasonId);
+  if ((row?.matches ?? 0) > 0) throw new Error('This season cannot be deleted because it already has matches.');
+  const result = await db.runAsync('DELETE FROM seasons WHERE id=?', seasonId);
+  if (result.changes === 0) throw new Error('Season not found.');
+}
+
 export async function getSeasons(db: SQLiteDatabase): Promise<Season[]> {
   return db.getAllAsync<Season>(`
     SELECT s.id, s.name, s.start_date AS startDate, s.end_date AS endDate, COUNT(m.id) AS matchCount
