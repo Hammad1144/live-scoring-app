@@ -7,7 +7,7 @@ import {
   SUPABASE_URL,
 } from '../config/cloud';
 import { buildLocalSnapshot, restoreLocalSnapshot, snapshotSummary } from '../data/cloudSnapshot';
-import { getLocalSyncState, markCloudSynced } from '../data/v15Core';
+import { getLocalSyncState, LocalSyncState, markCloudSynced } from '../data/v15Core';
 
 export type CloudSnapshotRow = {
   id: string;
@@ -81,8 +81,7 @@ async function authenticateAdmin() {
   return { accessToken: body.access_token, userId: body.user.id };
 }
 
-export async function getCloudSyncStatus(db: SQLiteDatabase): Promise<CloudSyncStatus> {
-  const [cloud, local] = await Promise.all([fetchCloudSnapshot(), getLocalSyncState(db)]);
+function makeStatus(cloud: CloudSnapshotRow, local: LocalSyncState): CloudSyncStatus {
   const hasBackup = cloud.version > 0 && !!cloud.payload && (cloud.payload as any)?.kind === 'cricket-zone-app-snapshot';
   return {
     cloudVersion: cloud.version,
@@ -96,9 +95,14 @@ export async function getCloudSyncStatus(db: SQLiteDatabase): Promise<CloudSyncS
   };
 }
 
+export async function getCloudSyncStatus(db: SQLiteDatabase): Promise<CloudSyncStatus> {
+  const [cloud, local] = await Promise.all([fetchCloudSnapshot(), getLocalSyncState(db)]);
+  return makeStatus(cloud, local);
+}
+
 export async function saveToCloud(db: SQLiteDatabase, force = false) {
   const [cloud, local] = await Promise.all([fetchCloudSnapshot(), getLocalSyncState(db)]);
-  const status = await getCloudSyncStatus(db);
+  const status = makeStatus(cloud, local);
 
   if (!force && local.dirty === 1 && cloud.version > local.lastCloudVersion) {
     throw new CloudSyncConflictError(
@@ -143,10 +147,9 @@ export async function saveToCloud(db: SQLiteDatabase, force = false) {
 
 export async function refreshFromCloud(db: SQLiteDatabase, force = false) {
   const [cloud, local] = await Promise.all([fetchCloudSnapshot(), getLocalSyncState(db)]);
-  const hasBackup = cloud.version > 0 && !!cloud.payload && (cloud.payload as any)?.kind === 'cricket-zone-app-snapshot';
-  if (!hasBackup) throw new Error('No cloud backup has been saved yet. Save data from an Admin device first.');
+  const status = makeStatus(cloud, local);
+  if (!status.cloudHasBackup) throw new Error('No cloud backup has been saved yet. Save data from an Admin device first.');
 
-  const status = await getCloudSyncStatus(db);
   if (!force && local.dirty === 1) {
     throw new CloudSyncConflictError(
       'This device contains local changes that have not been saved to cloud. Refreshing will replace them.',
