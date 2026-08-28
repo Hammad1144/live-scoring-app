@@ -91,7 +91,7 @@ export async function getMatchDetailV13(db: SQLiteDatabase, matchId: number): Pr
   const detail = await getBaseMatchDetail(db, matchId);
   for (const innings of detail.innings) {
     const deliveries = await db.getAllAsync<any>(`
-      SELECT id, seq, over_no, legal_ball, bat_runs, wide_runs, no_ball_runs, bye_runs, leg_bye_runs,
+      SELECT id, seq, over_no, legal_ball, striker_id, non_striker_id, bat_runs, wide_runs, no_ball_runs, bye_runs, leg_bye_runs,
         total_runs, wicket, wicket_type, dismissed_player_id, bowler_id, fielder_id, dead_run
       FROM deliveries WHERE innings_id = ? ORDER BY seq
     `, innings.inningsId);
@@ -128,6 +128,16 @@ export async function getMatchDetailV13(db: SQLiteDatabase, matchId: number): Pr
           break;
       }
     }
+
+    // Match summary should only contain batters who actually participated in the innings.
+    // A player counts as having batted if they appeared at either crease or were dismissed.
+    const participatedPlayerIds = new Set<number>();
+    for (const delivery of deliveries) {
+      if (delivery.striker_id != null) participatedPlayerIds.add(delivery.striker_id);
+      if (delivery.non_striker_id != null) participatedPlayerIds.add(delivery.non_striker_id);
+      if (delivery.dismissed_player_id != null) participatedPlayerIds.add(delivery.dismissed_player_id);
+    }
+    innings.batters = innings.batters.filter(batter => participatedPlayerIds.has(batter.playerId));
   }
   return detail;
 }

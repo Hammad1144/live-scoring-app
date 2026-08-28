@@ -190,6 +190,7 @@ export function HomeScreen({
             <Pressable style={styles.tile} onPress={() => onNavigate('teams')}><Text style={styles.tileIcon}>🛡️</Text><Text style={styles.tileTitle}>Team Bank</Text><Text style={styles.tileMeta}>Reusable squads</Text></Pressable>
           </>
         ) : null}
+        <Pressable style={styles.tile} onPress={() => onNavigate('playerDirectory')}><Text style={styles.tileIcon}>🔎</Text><Text style={styles.tileTitle}>Player Profiles</Text><Text style={styles.tileMeta}>Search performance</Text></Pressable>
         <Pressable style={styles.tile} onPress={() => onNavigate('seasons')}><Text style={styles.tileIcon}>🗓️</Text><Text style={styles.tileTitle}>Seasons</Text><Text style={styles.tileMeta}>Matches & rankings</Text></Pressable>
         <Pressable style={styles.tile} onPress={() => onNavigate('history')}><Text style={styles.tileIcon}>📋</Text><Text style={styles.tileTitle}>Match History</Text><Text style={styles.tileMeta}>Previous scorecards</Text></Pressable>
         <Pressable style={styles.tile} onPress={() => onNavigate('leaderboards')}><Text style={styles.tileIcon}>🏆</Text><Text style={styles.tileTitle}>Leaderboards</Text><Text style={styles.tileMeta}>All-time & seasons</Text></Pressable>
