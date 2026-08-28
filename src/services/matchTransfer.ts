@@ -2,7 +2,7 @@ import { File, Paths } from 'expo-file-system';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';
 import type { SQLiteDatabase } from 'expo-sqlite';
-import { exportMatchPackageV13 as exportMatchPackage, importMatchPackageV13 as importMatchPackage } from '../data/matchPortabilityV13';
+import { exportMatchPackageV14 as exportMatchPackage, importMatchPackageV14 as importMatchPackage } from '../data/matchPortabilityV14';
 import { PortableMatchPackage } from '../types';
 
 function safeFilePart(value: string) {
