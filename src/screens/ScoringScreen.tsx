@@ -5,12 +5,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   getAvailableBatters,
   getAvailableBowlers,
-  getLiveMatch,
-  recordDelivery,
+  getMatchPlayers,
   setNextBatter,
   setNextBowler,
-  undoLastDelivery,
 } from '../data/database';
+import {
+  getLiveMatchV13 as getLiveMatch,
+  recordDeliveryV13 as recordDelivery,
+  undoLastDeliveryV13 as undoLastDelivery,
+} from '../data/v13Core';
 import { deliveryLabel, formatOvers } from '../logic/cricket';
 import { DeliveryInput, LiveMatch, Player, WicketType } from '../types';
 import { Card, Chip, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/UI';
@@ -42,6 +45,8 @@ export function ScoringScreen({
   const [wicketType, setWicketType] = useState<WicketType>('Bowled');
   const [dismissedId, setDismissedId] = useState<number | null>(null);
   const [wicketRuns, setWicketRuns] = useState(0);
+  const [fielderId, setFielderId] = useState<number | null>(null);
+  const [fielders, setFielders] = useState<Player[]>([]);
 
   const load = async () => {
     const next = await getLiveMatch(db, matchId);
@@ -76,6 +81,7 @@ export function ScoringScreen({
       const result = await recordDelivery(db, live.innings.id, input);
       setExtraMode(null);
       setWicketOpen(false);
+      setFielderId(null);
       await load();
 
       if (result.matchCompleted) {
@@ -138,12 +144,29 @@ export function ScoringScreen({
   useEffect(() => {
     if (!live) return;
     if (wicketType !== 'Run Out') setDismissedId(live.innings.striker_id);
-  }, [wicketType, live]);
+    setFielderId(null);
+  }, [wicketType]);
+
+  const openWicket = async () => {
+    if (!live) return;
+    setWicketDelivery('legal');
+    setWicketType('Bowled');
+    setDismissedId(live.innings.striker_id);
+    setWicketRuns(0);
+    setFielderId(null);
+    setFielders(await getMatchPlayers(db, matchId, live.innings.bowling_team_id));
+    setWicketOpen(true);
+  };
 
   const submitWicket = () => {
     if (!live || !dismissedId) return;
     const isRunOut = wicketType === 'Run Out';
     const creditedBowler = !isRunOut;
+    const needsFielder = wicketType === 'Caught' || wicketType === 'Run Out' || wicketType === 'Stumped';
+    if (needsFielder && !fielderId) {
+      Alert.alert('Select player', `Select the player involved in the ${wicketType.toLowerCase()}.`);
+      return;
+    }
 
     if (wicketDelivery === 'wide') {
       handleResult({
@@ -154,6 +177,7 @@ export function ScoringScreen({
         dismissedPlayerId: dismissedId,
         creditedBowler,
         runningRunsForStrike: isRunOut ? wicketRuns : 0,
+        fielderId,
       });
     } else if (wicketDelivery === 'noBall') {
       handleResult({
@@ -165,6 +189,7 @@ export function ScoringScreen({
         dismissedPlayerId: dismissedId,
         creditedBowler: false,
         runningRunsForStrike: isRunOut ? wicketRuns : 0,
+        fielderId,
       });
     } else {
       handleResult({
@@ -175,6 +200,7 @@ export function ScoringScreen({
         dismissedPlayerId: dismissedId,
         creditedBowler,
         runningRunsForStrike: isRunOut ? wicketRuns : 0,
+        fielderId,
       });
     }
   };
@@ -194,6 +220,8 @@ export function ScoringScreen({
   const nonStrikerStatLine = `${live.nonStrikerStats.runs} (${live.nonStrikerStats.balls})`;
   const bowlerStatLine = `${formatOvers(live.bowlerStats.legalBalls)} ov • ${live.bowlerStats.runs} R • ${live.bowlerStats.wickets} W`;
   const sheetBottomPadding = Math.max(insets.bottom, 12) + 18;
+  const wicketNeedsFielder = wicketType === 'Caught' || wicketType === 'Run Out' || wicketType === 'Stumped';
+  const fielderLabel = wicketType === 'Caught' ? 'Caught by' : wicketType === 'Run Out' ? 'Run out by' : 'Stumped by';
 
   return (
     <View style={styles.root}>
@@ -292,6 +320,13 @@ export function ScoringScreen({
                 <Text style={styles.runText}>{r}</Text>
               </Pressable>
             ))}
+            <Pressable
+              style={({ pressed }) => [styles.runButton, styles.deadRunButton, pressed && styles.pressed]}
+              onPress={() => handleResult({ legalBall: true, batRuns: 1, deadRun: true, runningRunsForStrike: 0 })}
+            >
+              <Text style={styles.runText}>1D</Text>
+              <Text style={styles.deadRunHint}>dead run</Text>
+            </Pressable>
           </View>
 
           <Text style={styles.section}>Extras & wicket</Text>
@@ -310,13 +345,7 @@ export function ScoringScreen({
             </Pressable>
             <Pressable
               style={({ pressed }) => [styles.actionButton, styles.wicketAction, pressed && styles.pressed]}
-              onPress={() => {
-                setWicketDelivery('legal');
-                setWicketType('Bowled');
-                setDismissedId(innings.striker_id);
-                setWicketRuns(0);
-                setWicketOpen(true);
-              }}
+              onPress={openWicket}
             >
               <Text style={styles.wicketText}>WICKET</Text>
             </Pressable>
@@ -403,7 +432,20 @@ export function ScoringScreen({
                       }
                     />
                   ))}
+                  {nbMode === 'bat' ? (
+                    <Chip
+                      label="1D"
+                      onPress={() => handleResult({
+                        legalBall: false,
+                        noBallRuns: 1,
+                        batRuns: 1,
+                        deadRun: true,
+                        runningRunsForStrike: 0,
+                      })}
+                    />
+                  ) : null}
                 </View>
+                {nbMode === 'bat' ? <Text style={styles.deadRunHelp}>1D credits 1 run to the batter without changing strike.</Text> : null}
               </>
             ) : null}
 
@@ -456,7 +498,18 @@ export function ScoringScreen({
                 </>
               ) : null}
 
-              <PrimaryButton label="Record Wicket" onPress={submitWicket} danger />
+              {wicketNeedsFielder ? (
+                <>
+                  <Text style={styles.modalHint}>{fielderLabel}</Text>
+                  <ScrollView style={styles.fielderScroll} contentContainerStyle={styles.chips} keyboardShouldPersistTaps="handled">
+                    {fielders.map(p => (
+                      <Chip key={p.id} label={p.name} selected={fielderId === p.id} onPress={() => setFielderId(p.id)} />
+                    ))}
+                  </ScrollView>
+                </>
+              ) : null}
+
+              <PrimaryButton label="Record Wicket" onPress={submitWicket} danger disabled={wicketNeedsFielder && !fielderId} />
               <SecondaryButton label="Cancel" onPress={() => setWicketOpen(false)} />
             </View>
           </ScrollView>
@@ -552,7 +605,7 @@ const styles = StyleSheet.create({
     rowGap: 10,
   },
   runButton: {
-    width: '31.5%',
+    width: '23.5%',
     height: 64,
     borderRadius: 16,
     backgroundColor: colors.surface,
@@ -561,7 +614,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  deadRunButton: { borderColor: colors.primary },
   runText: { color: colors.text, fontSize: 24, fontWeight: '900' },
+  deadRunHint: { color: colors.primary, fontSize: 9, fontWeight: '800', marginTop: 1 },
+  deadRunHelp: { color: colors.primary, fontSize: 11, fontWeight: '700' },
   actionGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -609,4 +665,5 @@ const styles = StyleSheet.create({
   modalHint: { color: colors.muted, fontSize: 13, fontWeight: '700' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   pickerScroll: { maxHeight: 280 },
+  fielderScroll: { maxHeight: 160 },
 });
