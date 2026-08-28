@@ -27,6 +27,7 @@ function AppContent() {
   const [screen, setScreen] = useState<Screen>('home');
   const [teamEditId, setTeamEditId] = useState<number | undefined>();
   const [matchId, setMatchId] = useState<number | null>(null);
+  const [matchReturn, setMatchReturn] = useState<Screen>('history');
   const [seasonId, setSeasonId] = useState<number | null>(null);
   const [seasonReturn, setSeasonReturn] = useState<Screen>('home');
   const [playerName, setPlayerName] = useState('');
@@ -45,8 +46,9 @@ function AppContent() {
     setPlayerReturn(returnTo);
     setScreen('playerProfile');
   };
-  const openMatch = async (id: number) => {
+  const openMatch = async (id: number, returnTo: Screen = 'history') => {
     setMatchId(id);
+    setMatchReturn(returnTo);
     const match = await getMatch(db, id);
     if (match.status === 'COMPLETE') return setScreen('matchDetail');
     const innings = await getCurrentInnings(db, id);
@@ -56,18 +58,18 @@ function AppContent() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right', 'bottom']}>
-      {screen === 'home' && <HomeScreen onNavigate={navigate} onOpenMatch={openMatch} />}
+      {screen === 'home' && <HomeScreen onNavigate={navigate} onOpenMatch={(id) => openMatch(id, 'home')} />}
       {screen === 'players' && <PlayersScreen onBack={() => setScreen('home')} />}
       {screen === 'teams' && <TeamsScreen onBack={() => setScreen('home')} onEdit={openTeam} />}
       {screen === 'teamEditor' && <TeamEditorScreen teamId={teamEditId} onBack={() => setScreen('teams')} onSaved={() => setScreen('teams')} />}
-      {screen === 'matchSetup' && <MatchSetupScreen onBack={() => setScreen('home')} onTeams={() => setScreen('teams')} onSeasons={() => { setSeasonReturn('matchSetup'); setScreen('seasons'); }} onCreated={id => { setMatchId(id); setScreen('inningsSetup'); }} />}
-      {screen === 'inningsSetup' && matchId != null && <InningsSetupScreen matchId={matchId} onBack={() => setScreen('home')} onReady={() => setScreen('scoring')} />}
-      {screen === 'scoring' && matchId != null && <ScoringScreen matchId={matchId} onBack={() => setScreen('home')} onNeedSetup={() => setScreen('inningsSetup')} onMatchComplete={() => setScreen('matchDetail')} />}
-      {screen === 'history' && <HistoryScreen onBack={() => setScreen('home')} onOpen={(id) => openMatch(id)} />}
-      {screen === 'matchDetail' && matchId != null && <MatchDetailScreen matchId={matchId} onBack={() => setScreen('history')} onEdit={() => setScreen('scoring')} />}
+      {screen === 'matchSetup' && <MatchSetupScreen onBack={() => setScreen('home')} onTeams={() => setScreen('teams')} onSeasons={() => { setSeasonReturn('matchSetup'); setScreen('seasons'); }} onCreated={id => { setMatchId(id); setMatchReturn('home'); setScreen('inningsSetup'); }} />}
+      {screen === 'inningsSetup' && matchId != null && <InningsSetupScreen matchId={matchId} onBack={() => setScreen(matchReturn)} onReady={() => setScreen('scoring')} />}
+      {screen === 'scoring' && matchId != null && <ScoringScreen matchId={matchId} onBack={() => setScreen(matchReturn)} onNeedSetup={() => setScreen('inningsSetup')} onMatchComplete={() => setScreen('matchDetail')} />}
+      {screen === 'history' && <HistoryScreen onBack={() => setScreen('home')} onOpen={(id) => openMatch(id, 'history')} />}
+      {screen === 'matchDetail' && matchId != null && <MatchDetailScreen matchId={matchId} onBack={() => setScreen(matchReturn)} onEdit={() => setScreen('scoring')} />}
       {screen === 'leaderboards' && <LeaderboardsScreen onBack={() => setScreen('home')} onPlayer={(name, sid) => openPlayer(name, sid, 'leaderboards')} />}
       {screen === 'seasons' && <SeasonsScreen onBack={() => setScreen(seasonReturn)} onOpen={openSeason} />}
-      {screen === 'seasonDetail' && seasonId != null && <SeasonDetailScreen seasonId={seasonId} onBack={() => setScreen('seasons')} onOpenMatch={openMatch} onOpenPlayer={(name, sid) => openPlayer(name, sid, 'seasonDetail')} />}
+      {screen === 'seasonDetail' && seasonId != null && <SeasonDetailScreen seasonId={seasonId} onBack={() => setScreen('seasons')} onOpenMatch={(id) => openMatch(id, 'seasonDetail')} onOpenPlayer={(name, sid) => openPlayer(name, sid, 'seasonDetail')} />}
       {screen === 'playerProfile' && playerName && <PlayerProfileScreen playerName={playerName} initialSeasonId={playerSeasonId} onBack={() => setScreen(playerReturn)} />}
     </SafeAreaView>
   );
