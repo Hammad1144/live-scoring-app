@@ -104,8 +104,8 @@ export async function getSeasonMatches(db: SQLiteDatabase, seasonId: number): Pr
 
 // Cricket Zone season impact score.
 // Batting: run +1, four bonus +4, six bonus +6.
-// Bowling: wicket +10, bowled bonus +5, bowling dot ball +1.
-// Fielding: catch +8, stumping +10, run-out involvement +6.
+// Bowling: wicket +20, bowled bonus +8, bowling dot ball +1.
+// Fielding: catch +8, stumping +12, run-out involvement +6.
 export async function getSeasonImpactRanking(db: SQLiteDatabase, seasonId: number): Promise<SeasonRankingRow[]> {
   return db.getAllAsync<SeasonRankingRow>(`
     WITH appearances AS (
@@ -125,8 +125,8 @@ export async function getSeasonImpactRanking(db: SQLiteDatabase, seasonId: numbe
     ),
     bowling AS (
       SELECT mp.player_name AS name,
-        10 * SUM(d.credited_bowler)
-        + 5 * SUM(CASE WHEN d.wicket=1 AND d.wicket_type='Bowled' AND d.credited_bowler=1 THEN 1 ELSE 0 END)
+        20 * SUM(d.credited_bowler)
+        + 8 * SUM(CASE WHEN d.wicket=1 AND d.wicket_type='Bowled' AND d.credited_bowler=1 THEN 1 ELSE 0 END)
         + SUM(CASE WHEN d.legal_ball=1 AND d.bat_runs=0 AND d.wide_runs=0 AND d.no_ball_runs=0 THEN 1 ELSE 0 END) AS points
       FROM deliveries d
       JOIN matches m ON m.id=d.match_id
@@ -136,7 +136,7 @@ export async function getSeasonImpactRanking(db: SQLiteDatabase, seasonId: numbe
     fielding AS (
       SELECT mp.player_name AS name,
         8 * SUM(CASE WHEN d.wicket_type='Caught' THEN 1 ELSE 0 END)
-        + 10 * SUM(CASE WHEN d.wicket_type='Stumped' THEN 1 ELSE 0 END)
+        + 12 * SUM(CASE WHEN d.wicket_type='Stumped' THEN 1 ELSE 0 END)
         + 6 * SUM(CASE WHEN d.wicket_type='Run Out' THEN 1 ELSE 0 END) AS points
       FROM deliveries d
       JOIN matches m ON m.id=d.match_id
