@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { getCurrentInnings, getMatch } from './src/data/database';
 import { initDatabaseV14 } from './src/data/v14Core';
 import { colors } from './src/theme';
+import { LoginScreen } from './src/screens/LoginScreen';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { PlayersScreen } from './src/screens/PlayersScreen';
 import { TeamsScreen } from './src/screens/TeamsScreen';
@@ -20,10 +21,14 @@ import { SeasonsScreen } from './src/screens/SeasonsScreen';
 import { SeasonDetailScreen } from './src/screens/SeasonDetailScreen';
 import { PlayerProfileScreen } from './src/screens/PlayerProfileScreen';
 
+type AccessRole = 'admin' | 'viewer';
 type Screen = 'home' | 'players' | 'teams' | 'teamEditor' | 'matchSetup' | 'inningsSetup' | 'scoring' | 'history' | 'matchDetail' | 'leaderboards' | 'seasons' | 'seasonDetail' | 'playerProfile';
+
+const ADMIN_ONLY_SCREENS: Screen[] = ['players', 'teams', 'teamEditor', 'matchSetup', 'inningsSetup', 'scoring'];
 
 function AppContent() {
   const db = useSQLiteContext();
+  const [role, setRole] = useState<AccessRole | null>(null);
   const [screen, setScreen] = useState<Screen>('home');
   const [teamEditId, setTeamEditId] = useState<number | undefined>();
   const [matchId, setMatchId] = useState<number | null>(null);
@@ -34,21 +39,58 @@ function AppContent() {
   const [playerSeasonId, setPlayerSeasonId] = useState<number | null>(null);
   const [playerReturn, setPlayerReturn] = useState<Screen>('leaderboards');
 
-  const navigate = (s: string) => {
-    if (s === 'seasons') setSeasonReturn('home');
-    setScreen(s as Screen);
+  const login = (nextRole: AccessRole) => {
+    setRole(nextRole);
+    setScreen('home');
   };
-  const openTeam = (id?: number) => { setTeamEditId(id); setScreen('teamEditor'); };
+
+  const logout = () => {
+    setRole(null);
+    setScreen('home');
+    setTeamEditId(undefined);
+    setMatchId(null);
+    setMatchReturn('history');
+    setSeasonId(null);
+    setSeasonReturn('home');
+    setPlayerName('');
+    setPlayerSeasonId(null);
+    setPlayerReturn('leaderboards');
+  };
+
+  const navigate = (s: string) => {
+    const next = s as Screen;
+    if (role === 'viewer' && ADMIN_ONLY_SCREENS.includes(next)) {
+      setScreen('home');
+      return;
+    }
+    if (next === 'seasons') setSeasonReturn('home');
+    setScreen(next);
+  };
+
+  const openTeam = (id?: number) => {
+    if (role !== 'admin') return;
+    setTeamEditId(id);
+    setScreen('teamEditor');
+  };
+
   const openSeason = (id: number) => { setSeasonId(id); setScreen('seasonDetail'); };
+
   const openPlayer = (name: string, selectedSeasonId: number | null, returnTo: Screen) => {
     setPlayerName(name);
     setPlayerSeasonId(selectedSeasonId);
     setPlayerReturn(returnTo);
     setScreen('playerProfile');
   };
+
   const openMatch = async (id: number, returnTo: Screen = 'history') => {
     setMatchId(id);
     setMatchReturn(returnTo);
+
+    if (role === 'viewer') {
+      setScreen('matchDetail');
+      return;
+    }
+
     const match = await getMatch(db, id);
     if (match.status === 'COMPLETE') return setScreen('matchDetail');
     const innings = await getCurrentInnings(db, id);
@@ -58,19 +100,27 @@ function AppContent() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right', 'bottom']}>
-      {screen === 'home' && <HomeScreen onNavigate={navigate} onOpenMatch={(id) => openMatch(id, 'home')} />}
-      {screen === 'players' && <PlayersScreen onBack={() => setScreen('home')} />}
-      {screen === 'teams' && <TeamsScreen onBack={() => setScreen('home')} onEdit={openTeam} />}
-      {screen === 'teamEditor' && <TeamEditorScreen teamId={teamEditId} onBack={() => setScreen('teams')} onSaved={() => setScreen('teams')} />}
-      {screen === 'matchSetup' && <MatchSetupScreen onBack={() => setScreen('home')} onTeams={() => setScreen('teams')} onSeasons={() => { setSeasonReturn('matchSetup'); setScreen('seasons'); }} onCreated={id => { setMatchId(id); setMatchReturn('home'); setScreen('inningsSetup'); }} />}
-      {screen === 'inningsSetup' && matchId != null && <InningsSetupScreen matchId={matchId} onBack={() => setScreen(matchReturn)} onReady={() => setScreen('scoring')} />}
-      {screen === 'scoring' && matchId != null && <ScoringScreen matchId={matchId} onBack={() => setScreen(matchReturn)} onNeedSetup={() => setScreen('inningsSetup')} onMatchComplete={() => setScreen('matchDetail')} />}
-      {screen === 'history' && <HistoryScreen onBack={() => setScreen('home')} onOpen={(id) => openMatch(id, 'history')} />}
-      {screen === 'matchDetail' && matchId != null && <MatchDetailScreen matchId={matchId} onBack={() => setScreen(matchReturn)} onEdit={() => setScreen('scoring')} />}
-      {screen === 'leaderboards' && <LeaderboardsScreen onBack={() => setScreen('home')} onPlayer={(name, sid) => openPlayer(name, sid, 'leaderboards')} />}
-      {screen === 'seasons' && <SeasonsScreen onBack={() => setScreen(seasonReturn)} onOpen={openSeason} />}
-      {screen === 'seasonDetail' && seasonId != null && <SeasonDetailScreen seasonId={seasonId} onBack={() => setScreen('seasons')} onOpenMatch={(id) => openMatch(id, 'seasonDetail')} onOpenPlayer={(name, sid) => openPlayer(name, sid, 'seasonDetail')} />}
-      {screen === 'playerProfile' && playerName && <PlayerProfileScreen playerName={playerName} initialSeasonId={playerSeasonId} onBack={() => setScreen(playerReturn)} />}
+      {role == null ? (
+        <LoginScreen onAdmin={() => login('admin')} onViewer={() => login('viewer')} />
+      ) : (
+        <>
+          {screen === 'home' && <HomeScreen role={role} onLogout={logout} onNavigate={navigate} onOpenMatch={(id) => openMatch(id, 'home')} />}
+
+          {role === 'admin' && screen === 'players' && <PlayersScreen onBack={() => setScreen('home')} />}
+          {role === 'admin' && screen === 'teams' && <TeamsScreen onBack={() => setScreen('home')} onEdit={openTeam} />}
+          {role === 'admin' && screen === 'teamEditor' && <TeamEditorScreen teamId={teamEditId} onBack={() => setScreen('teams')} onSaved={() => setScreen('teams')} />}
+          {role === 'admin' && screen === 'matchSetup' && <MatchSetupScreen onBack={() => setScreen('home')} onTeams={() => setScreen('teams')} onSeasons={() => { setSeasonReturn('matchSetup'); setScreen('seasons'); }} onCreated={id => { setMatchId(id); setMatchReturn('home'); setScreen('inningsSetup'); }} />}
+          {role === 'admin' && screen === 'inningsSetup' && matchId != null && <InningsSetupScreen matchId={matchId} onBack={() => setScreen(matchReturn)} onReady={() => setScreen('scoring')} />}
+          {role === 'admin' && screen === 'scoring' && matchId != null && <ScoringScreen matchId={matchId} onBack={() => setScreen(matchReturn)} onNeedSetup={() => setScreen('inningsSetup')} onMatchComplete={() => setScreen('matchDetail')} />}
+
+          {screen === 'history' && <HistoryScreen readOnly={role === 'viewer'} onBack={() => setScreen('home')} onOpen={(id) => openMatch(id, 'history')} />}
+          {screen === 'matchDetail' && matchId != null && <MatchDetailScreen readOnly={role === 'viewer'} matchId={matchId} onBack={() => setScreen(matchReturn)} onEdit={role === 'admin' ? () => setScreen('scoring') : undefined} />}
+          {screen === 'leaderboards' && <LeaderboardsScreen onBack={() => setScreen('home')} onPlayer={(name, sid) => openPlayer(name, sid, 'leaderboards')} />}
+          {screen === 'seasons' && <SeasonsScreen readOnly={role === 'viewer'} onBack={() => setScreen(seasonReturn)} onOpen={openSeason} />}
+          {screen === 'seasonDetail' && seasonId != null && <SeasonDetailScreen seasonId={seasonId} onBack={() => setScreen('seasons')} onOpenMatch={(id) => openMatch(id, 'seasonDetail')} onOpenPlayer={(name, sid) => openPlayer(name, sid, 'seasonDetail')} />}
+          {screen === 'playerProfile' && playerName && <PlayerProfileScreen playerName={playerName} initialSeasonId={playerSeasonId} onBack={() => setScreen(playerReturn)} />}
+        </>
+      )}
     </SafeAreaView>
   );
 }
