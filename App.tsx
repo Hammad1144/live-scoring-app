@@ -9,6 +9,7 @@ import { colors } from './src/theme';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { PlayersScreen } from './src/screens/PlayersScreen';
+import { PlayerDirectoryScreen } from './src/screens/PlayerDirectoryScreen';
 import { TeamsScreen } from './src/screens/TeamsScreen';
 import { TeamEditorScreen } from './src/screens/TeamEditorScreen';
 import { MatchSetupScreen } from './src/screens/MatchSetupScreen';
@@ -22,7 +23,7 @@ import { SeasonDetailScreen } from './src/screens/SeasonDetailScreen';
 import { PlayerProfileScreen } from './src/screens/PlayerProfileScreen';
 
 type AccessRole = 'admin' | 'viewer';
-type Screen = 'home' | 'players' | 'teams' | 'teamEditor' | 'matchSetup' | 'inningsSetup' | 'scoring' | 'history' | 'matchDetail' | 'leaderboards' | 'seasons' | 'seasonDetail' | 'playerProfile';
+type Screen = 'home' | 'players' | 'playerDirectory' | 'teams' | 'teamEditor' | 'matchSetup' | 'inningsSetup' | 'scoring' | 'history' | 'matchDetail' | 'leaderboards' | 'seasons' | 'seasonDetail' | 'playerProfile';
 
 const ADMIN_ONLY_SCREENS: Screen[] = ['players', 'teams', 'teamEditor', 'matchSetup', 'inningsSetup', 'scoring'];
 
@@ -107,6 +108,7 @@ function AppContent() {
           {screen === 'home' && <HomeScreen role={role} onLogout={logout} onNavigate={navigate} onOpenMatch={(id) => openMatch(id, 'home')} />}
 
           {role === 'admin' && screen === 'players' && <PlayersScreen onBack={() => setScreen('home')} />}
+          {screen === 'playerDirectory' && <PlayerDirectoryScreen onBack={() => setScreen('home')} onOpenPlayer={(name) => openPlayer(name, null, 'playerDirectory')} />}
           {role === 'admin' && screen === 'teams' && <TeamsScreen onBack={() => setScreen('home')} onEdit={openTeam} />}
           {role === 'admin' && screen === 'teamEditor' && <TeamEditorScreen teamId={teamEditId} onBack={() => setScreen('teams')} onSaved={() => setScreen('teams')} />}
           {role === 'admin' && screen === 'matchSetup' && <MatchSetupScreen onBack={() => setScreen('home')} onTeams={() => setScreen('teams')} onSeasons={() => { setSeasonReturn('matchSetup'); setScreen('seasons'); }} onCreated={id => { setMatchId(id); setMatchReturn('home'); setScreen('inningsSetup'); }} />}
