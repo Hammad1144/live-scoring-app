@@ -1,14 +1,15 @@
 {
   "expo": {
-    "name": "Local Cricket Scorer",
+    "name": "Cricket Zone App",
     "slug": "local-cricket-scorer",
-    "version": "1.5.0",
+    "version": "1.5.1",
+    "icon": "./assets/icon.png",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "android": {
       "package": "com.localcricket.scorer",
-      "versionCode": 6,
+      "versionCode": 7,
       "softwareKeyboardLayoutMode": "resize"
     },
     "ios": {
