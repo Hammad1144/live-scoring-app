@@ -104,7 +104,7 @@ export async function saveToCloud(db: SQLiteDatabase, force = false) {
   const [cloud, local] = await Promise.all([fetchCloudSnapshot(), getLocalSyncState(db)]);
   const status = makeStatus(cloud, local);
 
-  if (!force && local.dirty === 1 && cloud.version > local.lastCloudVersion) {
+  if (!force && cloud.version > local.lastCloudVersion) {
     throw new CloudSyncConflictError(
       'The cloud contains a newer version than this device. Refresh first, or explicitly overwrite the newer cloud data.',
       'save',
