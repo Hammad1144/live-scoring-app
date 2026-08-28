@@ -7,7 +7,17 @@ import { MatchDetail } from '../types';
 import { Card, PrimaryButton, ScreenHeader } from '../components/UI';
 import { colors } from '../theme';
 
-export function MatchDetailScreen({ matchId, onBack, onEdit }: { matchId: number; onBack: () => void; onEdit: () => void }) {
+export function MatchDetailScreen({
+  matchId,
+  onBack,
+  onEdit,
+  readOnly = false,
+}: {
+  matchId: number;
+  onBack: () => void;
+  onEdit?: () => void;
+  readOnly?: boolean;
+}) {
   const db = useSQLiteContext();
   const [detail, setDetail] = useState<MatchDetail | null>(null);
   useEffect(() => { getMatchDetail(db, matchId).then(setDetail); }, [db, matchId]);
@@ -22,7 +32,7 @@ export function MatchDetailScreen({ matchId, onBack, onEdit }: { matchId: number
         onPress: async () => {
           try {
             await reopenMatchForEditing(db, matchId);
-            onEdit();
+            onEdit?.();
           } catch (e) {
             Alert.alert('Unable to edit match', e instanceof Error ? e.message : String(e));
           }
@@ -34,9 +44,13 @@ export function MatchDetailScreen({ matchId, onBack, onEdit }: { matchId: number
   if (!detail) return null;
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <ScreenHeader title={detail.title} subtitle={`${detail.oversLimit} overs • ${new Date(detail.createdAt).toLocaleDateString()}`} onBack={onBack} />
+      <ScreenHeader
+        title={detail.title}
+        subtitle={`${detail.oversLimit} overs • ${new Date(detail.createdAt).toLocaleDateString()}${readOnly ? ' • View only' : ''}`}
+        onBack={onBack}
+      />
       {detail.resultText ? <Card style={styles.resultCard}><Text style={styles.result}>{detail.resultText}</Text></Card> : null}
-      {detail.status === 'COMPLETE' ? <PrimaryButton label="Edit Scoring / Undo Balls" onPress={editMatch} /> : null}
+      {!readOnly && detail.status === 'COMPLETE' ? <PrimaryButton label="Edit Scoring / Undo Balls" onPress={editMatch} /> : null}
       {detail.innings.map(inn => <View key={inn.inningsId} style={{ gap: 10 }}>
         <View style={styles.inningsHeader}><Text style={styles.team}>{inn.teamName}</Text><Text style={styles.total}>{inn.runs}/{inn.wickets} <Text style={styles.overs}>({formatOvers(inn.legalBalls)})</Text></Text></View>
         <Card>
