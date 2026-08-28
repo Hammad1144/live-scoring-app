@@ -36,10 +36,17 @@ export function PlayerProfileScreen({
       <ScreenHeader title={playerName} subtitle={stats ? `${stats.matches} match${stats.matches === 1 ? '' : 'es'} in selected scope` : 'Player performance'} onBack={onBack} />
 
       <Text style={styles.label}>PERIOD</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.periodScroll}
+        contentContainerStyle={styles.periodChips}
+      >
         <Chip label="All Time" selected={seasonId == null} onPress={() => setSeasonId(null)} />
         {seasons.map(s => <Chip key={s.id} label={s.name} selected={seasonId === s.id} onPress={() => setSeasonId(s.id)} />)}
       </ScrollView>
+
+      <View style={styles.divider} />
 
       <View style={styles.tabs}>
         <Chip label="Batting" selected={tab === 'batting'} onPress={() => setTab('batting')} />
@@ -88,8 +95,10 @@ export function PlayerProfileScreen({
 const styles = StyleSheet.create({
   container: { padding: 18, backgroundColor: colors.bg, minHeight: '100%', gap: 14, paddingBottom: 50 },
   label: { color: colors.muted, fontSize: 11, fontWeight: '900', letterSpacing: 1 },
-  chips: { gap: 8, paddingRight: 18 },
-  tabs: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  periodScroll: { flexGrow: 0, flexShrink: 0, height: 42 },
+  periodChips: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingRight: 18 },
+  divider: { height: 1, backgroundColor: colors.border, marginVertical: 2 },
+  tabs: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   title: { color: colors.text, fontWeight: '900', fontSize: 18, marginBottom: 14 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   stat: { width: '47%', backgroundColor: colors.surface2, borderRadius: 14, padding: 14, minHeight: 82, justifyContent: 'center' },
