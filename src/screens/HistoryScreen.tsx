@@ -19,7 +19,7 @@ export function HistoryScreen({ onBack, onOpen }: { onBack: () => void; onOpen: 
       const imported = await pickAndImportMatchSummary(db);
       if (!imported) return;
       await load();
-      Alert.alert('Match imported', `${imported.title} is now available in Match History.`);
+      Alert.alert('Match imported', `${imported.title} is now available in Match History. Exact-name players, teams and season data were reused where available; missing entries were added to their banks.`);
     } catch (e) {
       Alert.alert('Import failed', e instanceof Error ? e.message : String(e));
     }
