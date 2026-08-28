@@ -28,7 +28,7 @@ export function HomeScreen({
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <ScreenHeader
-        title="Local Cricket Scorer"
+        title="Cricket Zone App"
         subtitle={isAdmin ? 'Admin access • Full scoring controls' : 'View access • Read-only cricket records'}
       />
 
