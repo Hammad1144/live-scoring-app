@@ -48,6 +48,19 @@ function apiHeaders(accessToken?: string) {
   return headers;
 }
 
+async function cloudFetch(url: string, init?: RequestInit) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (e) {
+    if ((e as Error)?.name === 'AbortError') throw new Error('Cloud request timed out. Check your internet connection and try again.');
+    throw new Error(`Cloud connection failed: ${e instanceof Error ? e.message : String(e)}`);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function responseError(response: Response) {
   let detail = '';
   try {
@@ -61,7 +74,7 @@ async function responseError(response: Response) {
 
 export async function fetchCloudSnapshot(): Promise<CloudSnapshotRow> {
   const url = `${SUPABASE_URL}/rest/v1/app_snapshots?id=eq.${encodeURIComponent(CLOUD_SNAPSHOT_ID)}&select=id,version,payload,updated_at,updated_by&limit=1`;
-  const response = await fetch(url, { headers: apiHeaders() });
+  const response = await cloudFetch(url, { headers: apiHeaders() });
   if (!response.ok) throw new Error(`Unable to read cloud data (${await responseError(response)}).`);
   const rows = await response.json() as CloudSnapshotRow[];
   const row = rows[0];
@@ -70,7 +83,7 @@ export async function fetchCloudSnapshot(): Promise<CloudSnapshotRow> {
 }
 
 async function authenticateAdmin() {
-  const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+  const response = await cloudFetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
     method: 'POST',
     headers: apiHeaders(),
     body: JSON.stringify({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD }),
@@ -117,7 +130,7 @@ export async function saveToCloud(db: SQLiteDatabase, force = false) {
   const nextVersion = cloud.version + 1;
   const now = new Date().toISOString();
   const url = `${SUPABASE_URL}/rest/v1/app_snapshots?id=eq.${encodeURIComponent(CLOUD_SNAPSHOT_ID)}&version=eq.${cloud.version}`;
-  const response = await fetch(url, {
+  const response = await cloudFetch(url, {
     method: 'PATCH',
     headers: {
       ...apiHeaders(auth.accessToken),
