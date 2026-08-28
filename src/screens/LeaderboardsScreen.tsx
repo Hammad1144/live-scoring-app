@@ -43,10 +43,17 @@ export function LeaderboardsScreen({ onBack, onPlayer }: { onBack: () => void; o
       <ScreenHeader title="Leaderboards" subtitle={seasonId == null ? 'All-time performance' : selectedSeason?.name ?? 'Season performance'} onBack={onBack} />
 
       <Text style={styles.filterLabel}>PERIOD</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalChips}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.periodScroll}
+        contentContainerStyle={styles.periodChips}
+      >
         <Chip label="All Time" selected={seasonId == null} onPress={() => setSeasonId(null)} />
         {seasons.map(s => <Chip key={s.id} label={s.name} selected={seasonId === s.id} onPress={() => setSeasonId(s.id)} />)}
       </ScrollView>
+
+      <View style={styles.divider} />
 
       <View style={styles.chips}>
         <Chip label="Top Scorer" selected={board === 'runs'} onPress={() => setBoard('runs')} />
@@ -78,8 +85,10 @@ export function LeaderboardsScreen({ onBack, onPlayer }: { onBack: () => void; o
 const styles = StyleSheet.create({
   container: { padding: 18, backgroundColor: colors.bg, minHeight: '100%', paddingBottom: 40, gap: 12 },
   filterLabel: { color: colors.muted, fontSize: 11, fontWeight: '900', letterSpacing: 1 },
-  horizontalChips: { gap: 8, paddingRight: 18 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  periodScroll: { flexGrow: 0, flexShrink: 0, height: 42 },
+  periodChips: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingRight: 18 },
+  divider: { height: 1, backgroundColor: colors.border, marginVertical: 2 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   row: { marginBottom: 9, flexDirection: 'row', alignItems: 'center', gap: 12 },
   rank: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' },
   rankText: { color: colors.primary, fontWeight: '900' },
