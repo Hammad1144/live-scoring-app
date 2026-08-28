@@ -24,7 +24,7 @@ export function LoginScreen({ onAdmin, onViewer }: { onAdmin: () => void; onView
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <View style={styles.brand}>
           <Text style={styles.eyebrow}>CRICKET ZONE</Text>
-          <Text style={styles.title}>Local Cricket Scorer</Text>
+          <Text style={styles.title}>Cricket Zone App</Text>
           <Text style={styles.subtitle}>Choose how you want to enter the scoring app.</Text>
         </View>
 
