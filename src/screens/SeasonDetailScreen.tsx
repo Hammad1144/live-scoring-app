@@ -48,7 +48,7 @@ export function SeasonDetailScreen({
         <>
           <Card style={styles.info}>
             <Text style={styles.infoTitle}>Top Player of the Season</Text>
-            <Text style={styles.infoText}>Batting: +1/run, +4/four, +6/six • Bowling: +20/wicket, +8 Bowled bonus, +1/dot ball • Fielding: +8/catch, +12/stumping, +6/run-out.</Text>
+            <Text style={styles.infoText}>Top 10 players based on the Dream 11 model combining batting, bowling and fielding.</Text>
           </Card>
 
           {ranking.length === 0 ? <Empty text="No season performance data yet." /> : ranking.map((r, index) => (
