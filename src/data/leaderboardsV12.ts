@@ -24,6 +24,16 @@ export async function getLeaderboardsV12(db: SQLiteDatabase) {
     JOIN match_players mp ON mp.match_id=d.match_id AND mp.player_id=d.bowler_id
     GROUP BY mp.player_name HAVING value > 0 ORDER BY value DESC, name LIMIT 20
   `);
+  const catchRows = await db.getAllAsync<{ playerId: number; name: string; value: number; matches: number }>(`
+    SELECT MIN(d.fielder_id) AS playerId, mp.player_name AS name, COUNT(*) AS value,
+      COUNT(DISTINCT d.match_id) AS matches
+    FROM deliveries d
+    JOIN match_players mp ON mp.match_id=d.match_id AND mp.player_id=d.fielder_id
+    WHERE d.wicket=1 AND d.wicket_type='Caught' AND d.fielder_id IS NOT NULL
+    GROUP BY mp.player_name
+    HAVING value > 0
+    ORDER BY value DESC, name LIMIT 20
+  `);
   const economyRows = await db.getAllAsync<{ playerId: number; name: string; legalBalls: number; runs: number; matches: number }>(`
     SELECT MIN(d.bowler_id) AS playerId, mp.player_name AS name, SUM(d.legal_ball) AS legalBalls,
       SUM(d.bat_runs + d.wide_runs + d.no_ball_runs) AS runs,
@@ -43,6 +53,7 @@ export async function getLeaderboardsV12(db: SQLiteDatabase) {
     topScorers: scorerRows.map(r => ({ playerId: r.playerId, name: r.name, value: r.value, secondary: matchLabel(r.matches) })),
     mostSixes: sixRows.map(r => ({ playerId: r.playerId, name: r.name, value: r.value, secondary: matchLabel(r.matches) })),
     mostWickets: wicketRows.map(r => ({ playerId: r.playerId, name: r.name, value: r.value, secondary: matchLabel(r.matches) })),
+    mostCatches: catchRows.map(r => ({ playerId: r.playerId, name: r.name, value: r.value, secondary: matchLabel(r.matches) })),
     bestEconomy,
   };
 }
