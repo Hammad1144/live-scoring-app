@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ADMIN_PASSWORD, ADMIN_USERNAME } from '../config/cloud';
 import { Card, PrimaryButton, SecondaryButton } from '../components/UI';
 import { colors } from '../theme';
-
-const ADMIN_USERNAME = 'cricketzone';
-const ADMIN_PASSWORD = '123456';
 
 export function LoginScreen({ onAdmin, onViewer }: { onAdmin: () => void; onViewer: () => void }) {
   const [username, setUsername] = useState('');
