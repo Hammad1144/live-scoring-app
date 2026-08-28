@@ -1,29 +1,60 @@
-# Validation — v1.2 Enhancements
+# Validation Checklist — v1.4 Feature Branch
 
-Validated on the feature branch using TypeScript parsing/semantic checks with local Expo/React type stubs and an executable SQLite runtime harness.
+Run these checks before merging PR #2.
 
-## Passed
+## Core regression
+- Fresh database starts with 0 players.
+- Player Bank enforces the 30-player maximum.
+- Team creation/editing and Captain/Vice Captain remain functional.
+- Existing SQLite data survives additive migrations.
+- 1–10 over match limit remains enforced.
+- Existing wides/no-balls/byes/leg-byes/wickets/undo still work.
 
-- Fresh database starts with **0 players**.
-- Untouched legacy v1.1 databases containing only `Player 1` … `Player 24` are migrated to an empty Player Bank.
-- Manually added Player Bank enforces a **30-player maximum**.
-- Captain and Vice Captain persist on teams and must be different selected squad members.
-- Existing match/player/team data is preserved by additive SQLite migrations.
-- Match team names are snapshotted so imported/history scorecards keep the recorded names.
-- Manual **End Match** saves the partial scorecard as `Match ended manually`.
-- Completed match export contains match metadata, player snapshots, captain/vice-captain flags, innings and every delivery.
-- Import recreates the historical scorecard and delivery history without populating the destination device's Player Bank.
-- Duplicate import of the same portable match package is rejected.
-- Imported matches contribute to leaderboards.
-- Leaderboards expose distinct match-count reference.
-- Deleting a completed/imported match removes its scorecard and cleans up hidden archive teams used only for portability.
-- All TypeScript/TSX source files parse successfully.
-- Local semantic type check passes with Expo/React API stubs.
+## 1D and fielding
+- Legal `1D` gives the striker +1 run without changing strike because of the run.
+- `1D` on the sixth legal ball still performs the normal end-of-over strike swap.
+- `Nb + 1D` gives 2 team runs (1 no-ball + 1 batter run) without strike rotation caused by the batter run.
+- Caught, Run Out and Stumped require selection of an involved bowling-team player.
+- Scorecard dismissal text shows the selected fielder/keeper.
+- Most Catches counts caught dismissals only.
 
-## Environment limitation
+## Completed-match correction
+- Complete a match and open Match Summary.
+- Use Edit Scoring / Undo Balls.
+- Undo the final delivery, correct it and complete the match again.
+- Undo all second-innings deliveries and verify correction can continue into the first innings.
 
-`npm install` could not complete in the execution environment before timeout, so a full Expo build was not produced here. The new Expo SDK 54 dependencies use the SDK-recommended versions:
+## Seasons
+- Create multiple seasons with valid date ranges.
+- Start matches assigned to different seasons.
+- Start an unassigned match using No Season.
+- Season detail shows only matches assigned to that season.
+- Leaderboards switch correctly between All Time and each season.
+- Top Player of the Season shows batting/bowling/fielding point breakdowns.
 
-- `expo-document-picker ~14.0.8`
-- `expo-file-system ~19.0.23`
-- `expo-sharing ~14.0.8`
+## Player profiles
+- Open a profile from every leaderboard category.
+- Open a profile from season rankings.
+- Switch All Time / Season filters.
+- Verify Batting, Bowling and Fielding tabs against known scorecards.
+
+## Import/export
+- Export a completed season match containing `1D` and fielding dismissals.
+- Import it into a fresh database.
+- Missing season is created.
+- Missing teams are created and visible in Team Bank.
+- Missing players are created in Player Bank.
+- Re-import with exact-name players/teams already present and confirm no duplicates are created.
+- Imported scorecard matches the source device.
+- Imported stats contribute to All Time and Season leaderboards/player profiles.
+- Duplicate import of the same portable package is rejected.
+- Import returns a clear error if new players would exceed the 30-player limit.
+
+## Local checks
+
+```powershell
+npm run typecheck
+npx expo start --clear
+```
+
+No additional native dependency is introduced by the season/profile enhancement, so the existing development build can be reused for normal Metro/Fast Refresh testing after the SQLite migration runs.

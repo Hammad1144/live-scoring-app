@@ -2,6 +2,53 @@ export type Player = { id: number; name: string };
 export type TeamSummary = { id: number; name: string; playerCount: number; captainName?: string | null; viceCaptainName?: string | null };
 export type Team = { id: number; name: string; players: Player[]; captainId?: number | null; viceCaptainId?: number | null };
 
+export type Season = {
+  id: number;
+  name: string;
+  startDate: string | null;
+  endDate: string | null;
+  matchCount: number;
+};
+
+export type SeasonRankingRow = {
+  name: string;
+  matches: number;
+  battingPoints: number;
+  bowlingPoints: number;
+  fieldingPoints: number;
+  totalPoints: number;
+};
+
+export type PlayerProfileStats = {
+  matches: number;
+  batting: {
+    innings: number;
+    runs: number;
+    balls: number;
+    fours: number;
+    sixes: number;
+    highest: number;
+    dismissals: number;
+    average: number;
+    strikeRate: number;
+  };
+  bowling: {
+    legalBalls: number;
+    runs: number;
+    wickets: number;
+    dotBalls: number;
+    economy: number;
+    bestWickets: number;
+    bestRuns: number;
+  };
+  fielding: {
+    catches: number;
+    runOuts: number;
+    stumpings: number;
+    totalDismissals: number;
+  };
+};
+
 export type MatchStatus = 'IN_PROGRESS' | 'COMPLETE';
 export type MatchSummary = {
   id: number;
@@ -11,6 +58,8 @@ export type MatchSummary = {
   status: MatchStatus;
   resultText: string | null;
   createdAt: string;
+  seasonId?: number | null;
+  seasonName?: string | null;
 };
 
 export type MatchRow = {
@@ -24,6 +73,7 @@ export type MatchRow = {
   result_text: string | null;
   created_at: string;
   completed_at: string | null;
+  season_id?: number | null;
   import_key?: string | null;
   team_a_name_snapshot?: string | null;
   team_b_name_snapshot?: string | null;
@@ -42,8 +92,6 @@ export type InningsRow = {
   no_balls: number;
   byes: number;
   leg_byes: number;
-  // Runtime values are number|null. These two remain mutable during wicket handling
-  // in the legacy scoring engine, where TypeScript otherwise narrows them to number.
   striker_id: any;
   non_striker_id: any;
   bowler_id: number | null;
@@ -64,6 +112,8 @@ export type DeliveryInput = {
   dismissedPlayerId?: number | null;
   creditedBowler?: boolean;
   runningRunsForStrike?: number;
+  deadRun?: boolean;
+  fielderId?: number | null;
 };
 
 export type WicketType = 'Bowled' | 'Caught' | 'Run Out' | 'Stumped';
@@ -109,6 +159,8 @@ export type DeliveryView = {
   total_runs: number;
   wicket: number;
   wicket_type: string | null;
+  dead_run?: number;
+  fielder_id?: number | null;
 };
 
 export type RecordResult = {
@@ -176,6 +228,11 @@ export type PortableMatchPackage = {
   schemaVersion: 1;
   sourceKey: string;
   exportedAt: string;
+  season?: {
+    name: string;
+    startDate: string | null;
+    endDate: string | null;
+  } | null;
   match: {
     sourceMatchId: number;
     teamAId: number;
@@ -238,5 +295,7 @@ export type PortableMatchPackage = {
     creditedBowler: number;
     stateBeforeJson: string;
     createdAt: string;
+    deadRun?: number;
+    fielderId?: number | null;
   }>;
 };

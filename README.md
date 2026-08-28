@@ -2,50 +2,70 @@
 
 Offline-first cricket scoring app using React Native, TypeScript, Expo and SQLite.
 
-## v1.2 enhancement set
+## Current feature set
 
 ### Scoring
 - 1–10 over matches.
 - Required run rate shown during a chase.
-- Manual **End Match** action with confirmation; the current score is retained as a historical scorecard.
-- Existing legal-ball, extras, wicket, batter and bowler scoring remains intact.
+- Legal-ball tracking with wides, no-balls, byes and leg-byes.
+- `1D` (1 run dead): batter receives one run without strike rotation caused by that run.
+- Bowled, caught, run-out and stumped dismissals.
+- Caught/run-out/stumped events store the involved fielder/keeper.
+- Undo last delivery.
+- Completed matches can be reopened for correction and rescored.
+- Manual **End Match** action with confirmation.
 
 ### Player Bank
 - No players are pre-created on fresh installs.
-- Add players manually one at a time.
-- Rename and delete players.
+- Add, rename and delete players.
 - Maximum **30 players**.
 - A player assigned to a team must be removed from that team before deletion.
-- Untouched legacy `Player 1`–`Player 24` seed data is automatically removed during migration when no teams/matches exist.
 
 ### Team Bank
 - 2–11 players per team.
 - Optional Captain and Vice Captain selection.
-- Captain and Vice Captain must be different squad members.
 - Leadership is snapshotted with the match roster.
 
-### Match History
+### Seasons
+- Create named seasons with start/end dates.
+- Assign a season when starting a match, or leave the match unassigned.
+- View all matches in a season.
+- View **Top Player of the Season** impact rankings across batting, bowling and fielding.
+
+Season impact points use a simplified Dream11-inspired short-format model:
+- Batting: +1/run, +4/four, +6/six.
+- Bowling: +30/wicket, +8 additional for bowled, +1 bowling dot ball.
+- Fielding: +8/catch, +12/stumping, +6/run-out involvement.
+- Fantasy captain/vice-captain multipliers are intentionally excluded.
+
+### Match History / portability
 - Delete completed historical matches.
-- Export completed match summaries to a portable `.cricketmatch.json` file.
-- Import the file on another device and recreate the recorded match summary locally.
-- Portable data includes:
-  - team names
-  - match settings/result
-  - player name snapshots
-  - captain/vice-captain flags
-  - innings totals/extras
-  - every delivery
-  - batting/bowling scorecard data derived from those deliveries
-  - over-by-over history
-- Imported history does **not** consume the 30-player Player Bank limit; imported rosters remain historical snapshots.
+- Export completed matches as `.cricketmatch.json`.
+- Import the file on another device and recreate the scorecard locally.
+- Portable data includes season, teams, player snapshots, leadership flags, innings, every delivery, `1D` and fielding attribution.
+- Import resolves entities by **exact name**:
+  - matching player/team/season → reuse existing entry;
+  - missing player → add to Player Bank;
+  - missing team → add to Team Bank and populate its imported squad;
+  - missing season → create the imported season.
+- Imported delivery/player IDs are remapped to local IDs so statistics aggregate correctly.
+- Import respects the 30-player bank limit.
 - Duplicate import of the same exported match is blocked.
 
 ### Leaderboards
-- Top Scorer — total runs + number of matches.
-- Most Sixes — sixes + number of matches.
-- Most Wickets — wickets + number of matches.
-- Best Economy — economy + number of matches + bowling reference.
-- Imported matches contribute to leaderboard statistics.
+- Filter by **All Time** or any available season.
+- Top Scorer.
+- Most Sixes.
+- Most Wickets.
+- Most Catches.
+- Best Economy.
+- Each row shows match-count context and opens the player profile.
+
+### Player profiles
+- All Time / Season filter.
+- Batting tab: matches, innings, runs, high score, average, strike rate, balls, fours, sixes and dismissals.
+- Bowling tab: overs, wickets, runs conceded, economy, dot balls and best bowling.
+- Fielding tab: catches, run-outs, stumpings and total dismissals involved.
 
 ## Run locally
 
@@ -54,16 +74,34 @@ npm install
 npx expo start
 ```
 
-## Build standalone Android APK
+For the first native Android development build:
 
 ```powershell
-npm install
+npx expo run:android
+```
+
+## Build standalone Android APK
+
+Cloud APK:
+
+```powershell
 npm install --global eas-cli
 eas login
 eas build -p android --profile apk
 ```
 
-The installed APK works offline. Internet is only required to perform an EAS cloud build.
+Local debug APK:
+
+```powershell
+cd android
+.\gradlew assembleDebug
+```
+
+Output:
+
+```text
+android\app\build\outputs\apk\debug\app-debug.apk
+```
 
 ## Local database
 
@@ -73,9 +111,10 @@ Main tables:
 - `players`
 - `teams`
 - `team_players`
+- `seasons`
 - `matches`
 - `match_players`
 - `innings`
 - `deliveries`
 
-Schema changes are additive migrations so existing installed-app data is retained across APK updates.
+Schema changes use additive migrations so installed-app data is retained across APK updates.

@@ -1,21 +1,42 @@
 import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
-import { getMatchDetail } from '../data/database';
+import { getMatchDetailV13 as getMatchDetail, reopenMatchForEditing } from '../data/v13Core';
 import { economy, formatOvers, strikeRate } from '../logic/cricket';
 import { MatchDetail } from '../types';
-import { Card, ScreenHeader } from '../components/UI';
+import { Card, PrimaryButton, ScreenHeader } from '../components/UI';
 import { colors } from '../theme';
 
-export function MatchDetailScreen({ matchId, onBack }: { matchId: number; onBack: () => void }) {
+export function MatchDetailScreen({ matchId, onBack, onEdit }: { matchId: number; onBack: () => void; onEdit: () => void }) {
   const db = useSQLiteContext();
   const [detail, setDetail] = useState<MatchDetail | null>(null);
   useEffect(() => { getMatchDetail(db, matchId).then(setDetail); }, [db, matchId]);
+
+  const editMatch = () => Alert.alert(
+    'Edit completed match?',
+    'The match will be reopened. You can undo the last ball, continue undoing earlier balls, and then record the corrected scoring. The match will remain in progress until it completes again.',
+    [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Edit Scoring',
+        onPress: async () => {
+          try {
+            await reopenMatchForEditing(db, matchId);
+            onEdit();
+          } catch (e) {
+            Alert.alert('Unable to edit match', e instanceof Error ? e.message : String(e));
+          }
+        },
+      },
+    ],
+  );
+
   if (!detail) return null;
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <ScreenHeader title={detail.title} subtitle={`${detail.oversLimit} overs • ${new Date(detail.createdAt).toLocaleDateString()}`} onBack={onBack} />
       {detail.resultText ? <Card style={styles.resultCard}><Text style={styles.result}>{detail.resultText}</Text></Card> : null}
+      {detail.status === 'COMPLETE' ? <PrimaryButton label="Edit Scoring / Undo Balls" onPress={editMatch} /> : null}
       {detail.innings.map(inn => <View key={inn.inningsId} style={{ gap: 10 }}>
         <View style={styles.inningsHeader}><Text style={styles.team}>{inn.teamName}</Text><Text style={styles.total}>{inn.runs}/{inn.wickets} <Text style={styles.overs}>({formatOvers(inn.legalBalls)})</Text></Text></View>
         <Card>
@@ -37,4 +58,24 @@ export function MatchDetailScreen({ matchId, onBack }: { matchId: number; onBack
     </ScrollView>
   );
 }
-const styles = StyleSheet.create({ container: { padding: 18, backgroundColor: colors.bg, gap: 14, paddingBottom: 50 }, resultCard: { backgroundColor: '#0e2b1f' }, result: { color: colors.primary, fontSize: 18, fontWeight: '900', textAlign: 'center' }, inningsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 8 }, team: { color: colors.text, fontWeight: '900', fontSize: 20 }, total: { color: colors.primary, fontWeight: '900', fontSize: 20 }, overs: { color: colors.muted, fontSize: 13 }, tableTitle: { color: colors.text, fontWeight: '900', fontSize: 16, marginBottom: 12 }, tableHeader: { flexDirection: 'row', borderBottomWidth: 1, borderColor: colors.border, paddingBottom: 7 }, tableRow: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderColor: '#173428', paddingVertical: 9 }, th: { flex: 0.7, color: colors.muted, fontSize: 10, fontWeight: '800', textAlign: 'right' }, td: { flex: 0.7, color: colors.text, fontSize: 12, textAlign: 'right', fontWeight: '700' }, name: { color: colors.text, fontWeight: '800', fontSize: 12 }, dismissal: { color: colors.muted, fontSize: 10, marginTop: 2 }, extras: { color: colors.muted, fontSize: 11, marginTop: 12 }, overRow: { flexDirection: 'row', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderColor: '#173428' }, overNo: { color: colors.primary, fontWeight: '800', width: 62, fontSize: 11 }, overBalls: { color: colors.text, flex: 1, fontWeight: '700', fontSize: 12 } });
+
+const styles = StyleSheet.create({
+  container: { padding: 18, backgroundColor: colors.bg, gap: 14, paddingBottom: 50 },
+  resultCard: { backgroundColor: '#0e2b1f' },
+  result: { color: colors.primary, fontSize: 18, fontWeight: '900', textAlign: 'center' },
+  inningsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 8 },
+  team: { color: colors.text, fontWeight: '900', fontSize: 20 },
+  total: { color: colors.primary, fontWeight: '900', fontSize: 20 },
+  overs: { color: colors.muted, fontSize: 13 },
+  tableTitle: { color: colors.text, fontWeight: '900', fontSize: 16, marginBottom: 12 },
+  tableHeader: { flexDirection: 'row', borderBottomWidth: 1, borderColor: colors.border, paddingBottom: 7 },
+  tableRow: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderColor: '#173428', paddingVertical: 9 },
+  th: { flex: 0.7, color: colors.muted, fontSize: 10, fontWeight: '800', textAlign: 'right' },
+  td: { flex: 0.7, color: colors.text, fontSize: 12, textAlign: 'right', fontWeight: '700' },
+  name: { color: colors.text, fontWeight: '800', fontSize: 12 },
+  dismissal: { color: colors.muted, fontSize: 10, marginTop: 2 },
+  extras: { color: colors.muted, fontSize: 11, marginTop: 12 },
+  overRow: { flexDirection: 'row', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderColor: '#173428' },
+  overNo: { color: colors.primary, fontWeight: '800', width: 62, fontSize: 11 },
+  overBalls: { color: colors.text, flex: 1, fontWeight: '700', fontSize: 12 },
+});

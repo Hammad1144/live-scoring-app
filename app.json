@@ -2,13 +2,13 @@
   "expo": {
     "name": "Local Cricket Scorer",
     "slug": "local-cricket-scorer",
-    "version": "1.2.0",
+    "version": "1.4.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "android": {
       "package": "com.localcricket.scorer",
-      "versionCode": 3,
+      "versionCode": 5,
       "softwareKeyboardLayoutMode": "resize"
     },
     "ios": {
