@@ -4,7 +4,7 @@ import { SafeAreaProvider, SafeAreaView, initialWindowMetrics } from 'react-nati
 import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 import { getCurrentInnings, getMatch } from './src/data/database';
-import { initDatabaseV12 } from './src/data/v12Core';
+import { initDatabaseV13 } from './src/data/v13Core';
 import { colors } from './src/theme';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { PlayersScreen } from './src/screens/PlayersScreen';
@@ -46,7 +46,7 @@ function AppContent() {
       {screen === 'inningsSetup' && matchId != null && <InningsSetupScreen matchId={matchId} onBack={() => setScreen('home')} onReady={() => setScreen('scoring')} />}
       {screen === 'scoring' && matchId != null && <ScoringScreen matchId={matchId} onBack={() => setScreen('home')} onNeedSetup={() => setScreen('inningsSetup')} onMatchComplete={() => setScreen('matchDetail')} />}
       {screen === 'history' && <HistoryScreen onBack={() => setScreen('home')} onOpen={(id) => openMatch(id)} />}
-      {screen === 'matchDetail' && matchId != null && <MatchDetailScreen matchId={matchId} onBack={() => setScreen('history')} />}
+      {screen === 'matchDetail' && matchId != null && <MatchDetailScreen matchId={matchId} onBack={() => setScreen('history')} onEdit={() => setScreen('scoring')} />}
       {screen === 'leaderboards' && <LeaderboardsScreen onBack={() => setScreen('home')} />}
     </SafeAreaView>
   );
@@ -55,7 +55,7 @@ function AppContent() {
 export default function App() {
   return (
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-      <SQLiteProvider databaseName="local_cricket_scorer.db" onInit={initDatabaseV12}>
+      <SQLiteProvider databaseName="local_cricket_scorer.db" onInit={initDatabaseV13}>
         <StatusBar style="light" />
         <AppContent />
       </SQLiteProvider>
