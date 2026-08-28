@@ -6,7 +6,15 @@ import { Season } from '../types';
 import { Card, Empty, Field, PrimaryButton, ScreenHeader } from '../components/UI';
 import { colors } from '../theme';
 
-export function SeasonsScreen({ onBack, onOpen }: { onBack: () => void; onOpen: (id: number) => void }) {
+export function SeasonsScreen({
+  onBack,
+  onOpen,
+  readOnly = false,
+}: {
+  onBack: () => void;
+  onOpen: (id: number) => void;
+  readOnly?: boolean;
+}) {
   const db = useSQLiteContext();
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [name, setName] = useState('');
@@ -31,19 +39,28 @@ export function SeasonsScreen({ onBack, onOpen }: { onBack: () => void; onOpen: 
 
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <ScreenHeader title="Seasons" subtitle="Group matches across multi-week competitions" onBack={onBack} />
-      <Card style={styles.form}>
-        <Text style={styles.section}>Add Season</Text>
-        <Field label="SEASON NAME" value={name} onChangeText={setName} placeholder="e.g. Winter League 2026" />
-        <View style={styles.dateRow}>
-          <View style={styles.dateField}><Field label="START DATE" value={startDate} onChangeText={setStartDate} placeholder="YYYY-MM-DD" /></View>
-          <View style={styles.dateField}><Field label="END DATE" value={endDate} onChangeText={setEndDate} placeholder="YYYY-MM-DD" /></View>
-        </View>
-        <PrimaryButton label="+ Add Season" onPress={add} />
-      </Card>
+      <ScreenHeader
+        title="Seasons"
+        subtitle={readOnly ? 'Browse season matches and player rankings' : 'Group matches across multi-week competitions'}
+        onBack={onBack}
+      />
+
+      {!readOnly ? (
+        <Card style={styles.form}>
+          <Text style={styles.section}>Add Season</Text>
+          <Field label="SEASON NAME" value={name} onChangeText={setName} placeholder="e.g. Winter League 2026" />
+          <View style={styles.dateRow}>
+            <View style={styles.dateField}><Field label="START DATE" value={startDate} onChangeText={setStartDate} placeholder="YYYY-MM-DD" /></View>
+            <View style={styles.dateField}><Field label="END DATE" value={endDate} onChangeText={setEndDate} placeholder="YYYY-MM-DD" /></View>
+          </View>
+          <PrimaryButton label="+ Add Season" onPress={add} />
+        </Card>
+      ) : null}
 
       <Text style={styles.section}>Available Seasons</Text>
-      {seasons.length === 0 ? <Empty text="No seasons yet. Add your first season above." /> : seasons.map(s => (
+      {seasons.length === 0 ? (
+        <Empty text={readOnly ? 'No seasons are available yet.' : 'No seasons yet. Add your first season above.'} />
+      ) : seasons.map(s => (
         <Pressable key={s.id} onPress={() => onOpen(s.id)}>
           <Card style={styles.seasonCard}>
             <View style={{ flex: 1 }}>
