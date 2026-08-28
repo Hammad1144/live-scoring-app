@@ -17,7 +17,7 @@ export function HomeScreen({ onNavigate, onOpenMatch }: { onNavigate: (screen: s
       <Card style={styles.hero}>
         <Text style={styles.eyebrow}>READY TO SCORE</Text>
         <Text style={styles.heroTitle}>Start a 1–10 over match</Text>
-        <Text style={styles.heroText}>SQLite-backed scoring with legal-ball tracking, extras, wickets, scorecards and career leaderboards.</Text>
+        <Text style={styles.heroText}>SQLite-backed scoring with legal-ball tracking, extras, wickets, scorecards, seasons and player performance.</Text>
         <PrimaryButton label="+ New Match" onPress={() => onNavigate('matchSetup')} />
       </Card>
 
@@ -25,8 +25,9 @@ export function HomeScreen({ onNavigate, onOpenMatch }: { onNavigate: (screen: s
       <View style={styles.grid}>
         <Pressable style={styles.tile} onPress={() => onNavigate('players')}><Text style={styles.tileIcon}>👤</Text><Text style={styles.tileTitle}>Player Bank</Text><Text style={styles.tileMeta}>Up to 30 players</Text></Pressable>
         <Pressable style={styles.tile} onPress={() => onNavigate('teams')}><Text style={styles.tileIcon}>🛡️</Text><Text style={styles.tileTitle}>Team Bank</Text><Text style={styles.tileMeta}>Reusable squads</Text></Pressable>
+        <Pressable style={styles.tile} onPress={() => onNavigate('seasons')}><Text style={styles.tileIcon}>🗓️</Text><Text style={styles.tileTitle}>Seasons</Text><Text style={styles.tileMeta}>Matches & rankings</Text></Pressable>
         <Pressable style={styles.tile} onPress={() => onNavigate('history')}><Text style={styles.tileIcon}>📋</Text><Text style={styles.tileTitle}>Match History</Text><Text style={styles.tileMeta}>Previous scorecards</Text></Pressable>
-        <Pressable style={styles.tile} onPress={() => onNavigate('leaderboards')}><Text style={styles.tileIcon}>🏆</Text><Text style={styles.tileTitle}>Leaderboards</Text><Text style={styles.tileMeta}>Career stats</Text></Pressable>
+        <Pressable style={styles.tile} onPress={() => onNavigate('leaderboards')}><Text style={styles.tileIcon}>🏆</Text><Text style={styles.tileTitle}>Leaderboards</Text><Text style={styles.tileMeta}>All-time & seasons</Text></Pressable>
       </View>
 
       <View style={styles.sectionRow}><Text style={styles.section}>Recent Matches</Text><Pressable onPress={() => onNavigate('history')}><Text style={styles.link}>View all</Text></Pressable></View>
