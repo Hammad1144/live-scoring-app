@@ -8,7 +8,15 @@ import { shareMatchSummary, pickAndImportMatchSummary } from '../services/matchT
 import { Card, Empty, PrimaryButton, ScreenHeader } from '../components/UI';
 import { colors } from '../theme';
 
-export function HistoryScreen({ onBack, onOpen }: { onBack: () => void; onOpen: (id: number, status: string) => void }) {
+export function HistoryScreen({
+  onBack,
+  onOpen,
+  readOnly = false,
+}: {
+  onBack: () => void;
+  onOpen: (id: number, status: string) => void;
+  readOnly?: boolean;
+}) {
   const db = useSQLiteContext();
   const [matches, setMatches] = useState<MatchSummary[]>([]);
   const load = () => getMatchSummaries(db).then(setMatches);
@@ -48,19 +56,36 @@ export function HistoryScreen({ onBack, onOpen }: { onBack: () => void; onOpen: 
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <ScreenHeader title="Match History" subtitle="Review, export, import or remove completed matches" onBack={onBack} />
-      <PrimaryButton label="Import Match Summary" onPress={importSummary} />
-      <View style={{ height: 14 }} />
+      <ScreenHeader
+        title="Match History"
+        subtitle={readOnly ? 'Read-only match summaries and scorecards' : 'Review, export, import or remove completed matches'}
+        onBack={onBack}
+      />
 
-      {matches.length === 0 ? <Empty text="No matches yet. You can also import a .cricketmatch.json summary from another device." /> : matches.map(m => (
+      {!readOnly ? (
+        <>
+          <PrimaryButton label="Import Match Summary" onPress={importSummary} />
+          <View style={{ height: 14 }} />
+        </>
+      ) : null}
+
+      {matches.length === 0 ? (
+        <Empty text={readOnly ? 'No matches are available yet.' : 'No matches yet. You can also import a .cricketmatch.json summary from another device.'} />
+      ) : matches.map(m => (
         <Card key={m.id} style={styles.card}>
           <Pressable onPress={() => onOpen(m.id, m.status)}>
             <Text style={styles.title}>{m.teamAName} vs {m.teamBName}</Text>
             <Text style={styles.meta}>{m.oversLimit} overs • {new Date(m.createdAt).toLocaleDateString()}</Text>
-            <Text style={[styles.result, m.status !== 'COMPLETE' && { color: colors.warning }]}>{m.status === 'COMPLETE' ? m.resultText : 'In progress — tap to continue scoring'}</Text>
+            <Text style={[styles.result, m.status !== 'COMPLETE' && { color: colors.warning }]}>
+              {m.status === 'COMPLETE'
+                ? m.resultText
+                : readOnly
+                  ? 'In progress — tap to view current summary'
+                  : 'In progress — tap to continue scoring'}
+            </Text>
           </Pressable>
 
-          {m.status === 'COMPLETE' ? (
+          {!readOnly && m.status === 'COMPLETE' ? (
             <View style={styles.actions}>
               <Pressable style={styles.action} onPress={() => exportSummary(m)}><Text style={styles.actionText}>Export</Text></Pressable>
               <Pressable style={[styles.action, styles.deleteAction]} onPress={() => remove(m)}><Text style={styles.deleteText}>Delete</Text></Pressable>
