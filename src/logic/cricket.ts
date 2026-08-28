@@ -21,17 +21,16 @@ export function deliveryLabel(d: DeliveryView): string {
   if (d.wide_runs) return `${d.wide_runs === 1 ? '' : d.wide_runs}Wd`;
   if (d.no_ball_runs) {
     const extra = d.total_runs - d.no_ball_runs;
+    if (d.dead_run) return 'Nb+1D';
     return extra ? `Nb+${extra}` : 'Nb';
   }
   if (d.bye_runs) return `${d.bye_runs}B`;
   if (d.leg_bye_runs) return `${d.leg_bye_runs}Lb`;
+  if (d.dead_run) return '1D';
   return String(d.bat_runs);
 }
 
-export function normalizeDelivery(input: DeliveryInput): Required<Omit<DeliveryInput, 'wicketType' | 'dismissedPlayerId'>> & {
-  wicketType: string | null;
-  dismissedPlayerId: number | null;
-} {
+export function normalizeDelivery(input: DeliveryInput) {
   const batRuns = input.batRuns ?? 0;
   const wideRuns = input.wideRuns ?? 0;
   const noBallRuns = input.noBallRuns ?? 0;
@@ -49,5 +48,7 @@ export function normalizeDelivery(input: DeliveryInput): Required<Omit<DeliveryI
     dismissedPlayerId: input.dismissedPlayerId ?? null,
     creditedBowler: input.creditedBowler ?? false,
     runningRunsForStrike: input.runningRunsForStrike ?? 0,
+    deadRun: input.deadRun ?? false,
+    fielderId: input.fielderId ?? null,
   };
 }
