@@ -29,7 +29,7 @@ export function SeasonDetailScreen({
     Promise.all([getSeason(db, seasonId), getSeasonMatches(db, seasonId), getSeasonImpactRanking(db, seasonId)]).then(([s, m, r]) => {
       setSeason(s);
       setMatches(m);
-      setRanking(r);
+      setRanking(r.slice(0, 10));
     });
   }, [db, seasonId]);
 
@@ -48,7 +48,7 @@ export function SeasonDetailScreen({
         <>
           <Card style={styles.info}>
             <Text style={styles.infoTitle}>Top Player of the Season</Text>
-            <Text style={styles.infoText}>Impact points combine batting, bowling and fielding using a Dream11-inspired short-format scoring model: runs/boundaries/sixes, wickets/bowled/dot balls, catches/stumpings/run-outs.</Text>
+            <Text style={styles.infoText}>Top 10 players based on the Dream 11 model combining batting, bowling and fielding.</Text>
           </Card>
 
           {ranking.length === 0 ? <Empty text="No season performance data yet." /> : ranking.map((r, index) => (
