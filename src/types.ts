@@ -42,8 +42,6 @@ export type InningsRow = {
   no_balls: number;
   byes: number;
   leg_byes: number;
-  // Runtime values are number|null. These two remain mutable during wicket handling
-  // in the legacy scoring engine, where TypeScript otherwise narrows them to number.
   striker_id: any;
   non_striker_id: any;
   bowler_id: number | null;
@@ -64,6 +62,8 @@ export type DeliveryInput = {
   dismissedPlayerId?: number | null;
   creditedBowler?: boolean;
   runningRunsForStrike?: number;
+  deadRun?: boolean;
+  fielderId?: number | null;
 };
 
 export type WicketType = 'Bowled' | 'Caught' | 'Run Out' | 'Stumped';
@@ -109,6 +109,8 @@ export type DeliveryView = {
   total_runs: number;
   wicket: number;
   wicket_type: string | null;
+  dead_run?: number;
+  fielder_id?: number | null;
 };
 
 export type RecordResult = {
@@ -238,5 +240,7 @@ export type PortableMatchPackage = {
     creditedBowler: number;
     stateBeforeJson: string;
     createdAt: string;
+    deadRun?: number;
+    fielderId?: number | null;
   }>;
 };
