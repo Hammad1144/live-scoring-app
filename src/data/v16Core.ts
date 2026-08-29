@@ -2,9 +2,9 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { getAvailableBowlers, getMatch, getMatchPlayers } from './database';
 import { createMatchV14 } from './v14Core';
 import { createPlayer } from './v12Core';
-import { getMatchDetailV13 } from './v13Core';
+import { getMatchDetailV13, recordDeliveryV13 } from './v13Core';
 import { initDatabaseV15 } from './v15Core';
-import { BatterLine, InningsRow, MatchDetail, Player } from '../types';
+import { BatterLine, DeliveryInput, InningsRow, MatchDetail, Player, RecordResult } from '../types';
 
 export type MatchPlayerSwitch = {
   playerId: number;
@@ -24,7 +24,8 @@ export async function initDatabaseV16(db: SQLiteDatabase) {
       created_at TEXT NOT NULL,
       UNIQUE(innings_id, player_id),
       FOREIGN KEY(innings_id) REFERENCES innings(id) ON DELETE CASCADE,
-      FOREIGN KEY(match_id) REFERENCES matches(id) ON DELETE CASCADE
+      FOREIGN KEY(match_id) REFERENCES matches(id) ON DELETE CASCADE,
+      FOREIGN KEY(player_id) REFERENCES players(id)
     );
     CREATE INDEX IF NOT EXISTS idx_innings_retirements_innings ON innings_retirements(innings_id, player_id);
   `);
@@ -172,6 +173,8 @@ export async function retireBatterV16(db: SQLiteDatabase, inningsId: number, pla
   if (!isStriker && !isNonStriker) throw new Error('Only a current batter can be declared.');
   const prior = await db.getFirstAsync<{ id: number }>('SELECT id FROM innings_retirements WHERE innings_id=? AND player_id=?', inningsId, playerId);
   if (prior) throw new Error('This batter has already been declared in this innings.');
+  const replacements = await getAvailableBattersV16(db, inningsId);
+  if (replacements.length === 0) throw new Error('No replacement batter is available. A batter cannot be declared unless another eligible player can come in.');
 
   await db.withTransactionAsync(async () => {
     await db.runAsync(
@@ -182,6 +185,63 @@ export async function retireBatterV16(db: SQLiteDatabase, inningsId: number, pla
     if (isStriker) await db.runAsync('UPDATE innings SET striker_id=NULL WHERE id=?', inningsId);
     else await db.runAsync('UPDATE innings SET non_striker_id=NULL WHERE id=?', inningsId);
   });
+}
+
+async function teamNameV16(db: SQLiteDatabase, teamId: number) {
+  const row = await db.getFirstAsync<{ name: string }>('SELECT name FROM teams WHERE id=?', teamId);
+  return row?.name ?? 'Team';
+}
+
+async function closeInningsBecauseNoBatter(db: SQLiteDatabase, innings: InningsRow): Promise<RecordResult> {
+  await db.runAsync('UPDATE innings SET completed=1 WHERE id=?', innings.id);
+  if (innings.innings_no === 1) {
+    await db.runAsync(
+      `INSERT OR IGNORE INTO innings(match_id, innings_no, batting_team_id, bowling_team_id, target)
+       VALUES (?, 2, ?, ?, ?)`,
+      innings.match_id, innings.bowling_team_id, innings.batting_team_id, innings.runs + 1,
+    );
+    await db.runAsync('UPDATE matches SET current_innings=2 WHERE id=?', innings.match_id);
+    return {
+      inningsCompleted: true,
+      matchCompleted: false,
+      needsInningsSetup: true,
+      needsBatter: false,
+      needsBowler: false,
+      message: `Target: ${innings.runs + 1}`,
+    };
+  }
+
+  const first = await db.getFirstAsync<InningsRow>('SELECT * FROM innings WHERE match_id=? AND innings_no=1', innings.match_id);
+  if (!first) throw new Error('First innings not found.');
+  let resultText = 'Match tied';
+  if (innings.runs < first.runs) {
+    const margin = first.runs - innings.runs;
+    resultText = `${await teamNameV16(db, first.batting_team_id)} won by ${margin} run${margin === 1 ? '' : 's'}`;
+  }
+  await db.runAsync(
+    'UPDATE matches SET status=?, result_text=?, completed_at=? WHERE id=?',
+    'COMPLETE', resultText, new Date().toISOString(), innings.match_id,
+  );
+  return {
+    inningsCompleted: true,
+    matchCompleted: true,
+    needsInningsSetup: false,
+    needsBatter: false,
+    needsBowler: false,
+    message: resultText,
+  };
+}
+
+export async function recordDeliveryV16(db: SQLiteDatabase, inningsId: number, input: DeliveryInput): Promise<RecordResult> {
+  const result = await recordDeliveryV13(db, inningsId, input);
+  if (result.inningsCompleted || !result.needsBatter) return result;
+
+  const replacements = await getAvailableBattersV16(db, inningsId);
+  if (replacements.length > 0) return result;
+  const innings = await db.getFirstAsync<InningsRow>('SELECT * FROM innings WHERE id=?', inningsId);
+  if (!innings) throw new Error('Innings not found.');
+  if (innings.striker_id != null && innings.non_striker_id != null) return result;
+  return closeInningsBecauseNoBatter(db, innings);
 }
 
 export async function getMatchDetailV16(db: SQLiteDatabase, matchId: number): Promise<MatchDetail> {
@@ -206,7 +266,7 @@ export async function getMatchDetailV16(db: SQLiteDatabase, matchId: number): Pr
             COALESCE(SUM(CASE WHEN striker_id=? AND bat_runs=6 THEN 1 ELSE 0 END),0) AS sixes
           FROM deliveries WHERE innings_id=?
         `, item.playerId, item.playerId, item.playerId, item.playerId, innings.inningsId);
-        batter = {
+        const added: BatterLine = {
           playerId: item.playerId,
           name: item.name,
           runs: stats?.runs ?? 0,
@@ -214,8 +274,8 @@ export async function getMatchDetailV16(db: SQLiteDatabase, matchId: number): Pr
           fours: stats?.fours ?? 0,
           sixes: stats?.sixes ?? 0,
           dismissal: 'declared',
-        } satisfies BatterLine;
-        innings.batters.push(batter);
+        };
+        innings.batters.push(added);
       } else {
         batter.dismissal = 'declared';
       }
