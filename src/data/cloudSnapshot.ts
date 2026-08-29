@@ -1,12 +1,12 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { markCloudSynced } from './v15Core';
 
-export const SYNC_TABLES = ['players', 'teams', 'team_players', 'seasons', 'matches', 'match_players', 'innings', 'deliveries', 'innings_retirements'] as const;
+export const SYNC_TABLES = ['players', 'teams', 'team_players', 'seasons', 'season_rounds', 'matches', 'match_players', 'innings', 'deliveries', 'innings_retirements'] as const;
 export type SyncTable = typeof SYNC_TABLES[number];
 
 export type CricketCloudSnapshot = {
   kind: 'cricket-zone-app-snapshot';
-  schemaVersion: 1 | 2;
+  schemaVersion: 1 | 2 | 3;
   createdAt: string;
   tables: Record<SyncTable, Record<string, unknown>[]>;
   counts: Record<SyncTable, number>;
@@ -14,13 +14,13 @@ export type CricketCloudSnapshot = {
 
 function assertSnapshot(payload: unknown): asserts payload is CricketCloudSnapshot {
   const value = payload as CricketCloudSnapshot | null;
-  if (!value || value.kind !== 'cricket-zone-app-snapshot' || ![1, 2].includes(value.schemaVersion) || !value.tables) {
+  if (!value || value.kind !== 'cricket-zone-app-snapshot' || ![1, 2, 3].includes(value.schemaVersion) || !value.tables) {
     throw new Error('The cloud backup format is not supported by this version of Cricket Zone App.');
   }
-  // v1 snapshots pre-date declared/retired batters. Treat that table as empty when
-  // restoring an older cloud backup so existing backups remain compatible.
   const tables = value.tables as Record<string, Record<string, unknown>[]>;
+  // v1 pre-dates declared batters. v1/v2 pre-date the Season → Round/Week hierarchy.
   if (!Array.isArray(tables.innings_retirements)) tables.innings_retirements = [];
+  if (!Array.isArray(tables.season_rounds)) tables.season_rounds = [];
   for (const table of SYNC_TABLES) {
     if (!Array.isArray(tables[table])) throw new Error(`Cloud backup is missing ${table} data.`);
   }
@@ -38,7 +38,7 @@ export async function buildLocalSnapshot(db: SQLiteDatabase): Promise<CricketClo
 
   return {
     kind: 'cricket-zone-app-snapshot',
-    schemaVersion: 2,
+    schemaVersion: 3,
     createdAt: new Date().toISOString(),
     tables,
     counts,
