@@ -57,8 +57,8 @@ export async function importMatchPackageV14(db: SQLiteDatabase, payload: Portabl
   }
   const missingNames = uniqueNames.filter(name => !existingPlayers.has(name));
   const count = await db.getFirstAsync<{ c: number }>('SELECT COUNT(*) AS c FROM players');
-  if ((count?.c ?? 0) + missingNames.length > 30) {
-    throw new Error(`Import needs ${missingNames.length} new player${missingNames.length === 1 ? '' : 's'}, which would exceed the 30-player bank limit.`);
+  if ((count?.c ?? 0) + missingNames.length > 50) {
+    throw new Error(`Import needs ${missingNames.length} new player${missingNames.length === 1 ? '' : 's'}, which would exceed the 50-player bank limit.`);
   }
 
   const createdPlayerIds: number[] = [];

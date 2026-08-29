@@ -186,7 +186,7 @@ export function HomeScreen({
       <View style={styles.grid}>
         {isAdmin ? (
           <>
-            <Pressable style={styles.tile} onPress={() => onNavigate('players')}><Text style={styles.tileIcon}>👤</Text><Text style={styles.tileTitle}>Player Bank</Text><Text style={styles.tileMeta}>Up to 30 players</Text></Pressable>
+            <Pressable style={styles.tile} onPress={() => onNavigate('players')}><Text style={styles.tileIcon}>👤</Text><Text style={styles.tileTitle}>Player Bank</Text><Text style={styles.tileMeta}>Up to 50 players</Text></Pressable>
             <Pressable style={styles.tile} onPress={() => onNavigate('teams')}><Text style={styles.tileIcon}>🛡️</Text><Text style={styles.tileTitle}>Team Bank</Text><Text style={styles.tileMeta}>Reusable squads</Text></Pressable>
           </>
         ) : null}
