@@ -44,6 +44,7 @@ export function ScoringScreenV16({
   const [guestName, setGuestName] = useState('');
   const [addingGuest, setAddingGuest] = useState(false);
   const [wicketOpen, setWicketOpen] = useState(false);
+  const [declareOpen, setDeclareOpen] = useState(false);
   const [wicketDelivery, setWicketDelivery] = useState<WicketDelivery>('legal');
   const [wicketType, setWicketType] = useState<WicketType>('Bowled');
   const [dismissedId, setDismissedId] = useState<number | null>(null);
@@ -145,6 +146,7 @@ export function ScoringScreenV16({
 
   const declareBatter = (playerId: number | null, playerName: string | null) => {
     if (!live || !playerId) return;
+    setDeclareOpen(false);
     Alert.alert(
       'Declare batter?',
       `${playerName ?? 'This batter'} will leave the crease with the current score preserved. No wicket is added and the batter cannot return in this innings.`,
@@ -306,7 +308,6 @@ export function ScoringScreenV16({
                     ? `  •  ${live.strikerStats.fours}×4  ${live.strikerStats.sixes}×6`
                     : ''}
                 </Text>
-                {innings.striker_id ? <Pressable style={styles.declareButton} onPress={() => declareBatter(Number(innings.striker_id), live.strikerName)}><Text style={styles.declareText}>Declare</Text></Pressable> : null}
               </View>
 
               <View style={[styles.batterBlock, styles.batterBlockRight]}>
@@ -318,7 +319,6 @@ export function ScoringScreenV16({
                     ? `  •  ${live.nonStrikerStats.fours}×4  ${live.nonStrikerStats.sixes}×6`
                     : ''}
                 </Text>
-                {innings.non_striker_id ? <Pressable style={styles.declareButton} onPress={() => declareBatter(Number(innings.non_striker_id), live.nonStrikerName)}><Text style={styles.declareText}>Declare</Text></Pressable> : null}
               </View>
             </View>
 
@@ -400,6 +400,7 @@ export function ScoringScreenV16({
           </View>
 
           <SecondaryButton label="↶ Undo Last Ball" onPress={undo} />
+          <SecondaryButton label="Declare Batter" onPress={() => setDeclareOpen(true)} disabled={!innings.striker_id && !innings.non_striker_id} />
         </View>
       </ScrollView>
 
@@ -524,6 +525,37 @@ export function ScoringScreenV16({
         </View>
       </Modal>
 
+      <Modal transparent visible={declareOpen} animationType="slide" onRequestClose={() => setDeclareOpen(false)}>
+        <View style={styles.modalShade}>
+          <View style={[styles.modalCard, { paddingBottom: sheetBottomPadding }]}>
+            <Text style={styles.modalTitle}>Declare Batter</Text>
+            <Text style={styles.modalHint}>Select the current batter to declare. Their score is preserved, no wicket is added, and they cannot bat again in this innings.</Text>
+
+            {innings.striker_id ? (
+              <Pressable style={styles.declareOption} onPress={() => declareBatter(Number(innings.striker_id), live.strikerName)}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.declareOptionLabel}>STRIKER</Text>
+                  <Text style={styles.declareOptionName}>{live.strikerName ?? 'Striker'}</Text>
+                </View>
+                <Text style={styles.declareOptionScore}>{strikerStatLine}</Text>
+              </Pressable>
+            ) : null}
+
+            {innings.non_striker_id ? (
+              <Pressable style={styles.declareOption} onPress={() => declareBatter(Number(innings.non_striker_id), live.nonStrikerName)}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.declareOptionLabel}>NON-STRIKER</Text>
+                  <Text style={styles.declareOptionName}>{live.nonStrikerName ?? 'Non-striker'}</Text>
+                </View>
+                <Text style={styles.declareOptionScore}>{nonStrikerStatLine}</Text>
+              </Pressable>
+            ) : null}
+
+            <SecondaryButton label="Cancel" onPress={() => setDeclareOpen(false)} />
+          </View>
+        </View>
+      </Modal>
+
       <Modal transparent visible={picker != null} animationType="slide" onRequestClose={() => {}}>
         <View style={styles.modalShade}>
           <View style={[styles.modalCard, { paddingBottom: sheetBottomPadding }]}>
@@ -571,8 +603,6 @@ const styles = StyleSheet.create({
   smallLabel: { color: colors.muted, fontSize: 10, letterSpacing: 1, fontWeight: '800' },
   player: { color: colors.text, fontWeight: '800', marginTop: 4, fontSize: 15, maxWidth: '100%' },
   playerStats: { color: colors.primary, fontSize: 12, fontWeight: '800', marginTop: 5 },
-  declareButton: { marginTop: 8, borderWidth: 1, borderColor: colors.warning, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
-  declareText: { color: colors.warning, fontSize: 10, fontWeight: '900' },
   currentOverRuns: { color: colors.text, fontSize: 15, fontWeight: '900', marginTop: 4 },
   extras: { color: colors.muted, fontSize: 11, marginTop: 4 },
   alignRight: { textAlign: 'right' },
@@ -606,4 +636,8 @@ const styles = StyleSheet.create({
   fielderScroll: { maxHeight: 160 },
   guestBox: { gap: 10, borderTopWidth: 1, borderColor: colors.border, paddingTop: 12 },
   guestHint: { color: colors.muted, fontSize: 10, lineHeight: 15 },
+  declareOption: { minHeight: 64, borderRadius: 15, borderWidth: 1, borderColor: colors.warning, backgroundColor: colors.surface2, paddingHorizontal: 15, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  declareOptionLabel: { color: colors.warning, fontSize: 9, fontWeight: '900', letterSpacing: 1 },
+  declareOptionName: { color: colors.text, fontSize: 15, fontWeight: '900', marginTop: 3 },
+  declareOptionScore: { color: colors.primary, fontSize: 15, fontWeight: '900' },
 });
