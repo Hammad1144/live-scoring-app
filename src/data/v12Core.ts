@@ -58,7 +58,7 @@ async function validatePlayerName(db: SQLiteDatabase, name: string, excludeId?: 
 
 export async function createPlayer(db: SQLiteDatabase, name: string): Promise<number> {
   const count = await db.getFirstAsync<{ c: number }>('SELECT COUNT(*) AS c FROM players');
-  if ((count?.c ?? 0) >= 30) throw new Error('Player Bank supports a maximum of 30 players.');
+  if ((count?.c ?? 0) >= 50) throw new Error('Player Bank supports a maximum of 50 players.');
   const cleaned = await validatePlayerName(db, name);
   const result = await db.runAsync('INSERT INTO players(name) VALUES (?)', cleaned);
   return Number(result.lastInsertRowId);
@@ -66,12 +66,22 @@ export async function createPlayer(db: SQLiteDatabase, name: string): Promise<nu
 
 export async function renamePlayerV12(db: SQLiteDatabase, id: number, name: string) {
   const cleaned = await validatePlayerName(db, name, id);
-  await db.runAsync('UPDATE players SET name = ? WHERE id = ?', cleaned, id);
+  await db.withTransactionAsync(async () => {
+    await db.runAsync('UPDATE players SET name = ? WHERE id = ?', cleaned, id);
+    // Match snapshots intentionally follow Player Bank renames so scorecards, season rankings,
+    // leaderboards and player profiles all display the same current player identity.
+    await db.runAsync('UPDATE match_players SET player_name = ? WHERE player_id = ?', cleaned, id);
+  });
 }
 
 export async function deletePlayer(db: SQLiteDatabase, id: number) {
-  const used = await db.getFirstAsync<{ c: number }>('SELECT COUNT(*) AS c FROM team_players WHERE player_id = ?', id);
-  if ((used?.c ?? 0) > 0) throw new Error('Remove this player from all teams before deleting them.');
+  const used = await db.getFirstAsync<{ teamCount: number; matchCount: number }>(`
+    SELECT
+      (SELECT COUNT(*) FROM team_players WHERE player_id=?) AS teamCount,
+      (SELECT COUNT(*) FROM match_players WHERE player_id=?) AS matchCount
+  `, id, id);
+  if ((used?.teamCount ?? 0) > 0) throw new Error('Remove this player from all teams before deleting them.');
+  if ((used?.matchCount ?? 0) > 0) throw new Error('This player is used in match history and cannot be deleted.');
   await db.runAsync('DELETE FROM players WHERE id = ?', id);
 }
 
