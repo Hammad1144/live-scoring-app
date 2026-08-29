@@ -5,13 +5,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getMatchPlayers, setNextBowler } from '../data/database';
 import {
   getLiveMatchV13 as getLiveMatch,
-  recordDeliveryV13 as recordDelivery,
   undoLastDeliveryV13 as undoLastDelivery,
 } from '../data/v13Core';
 import {
   createGuestPlayerForMatch,
   getAvailableBattersV16,
   getAvailableBowlersV16,
+  recordDeliveryV16 as recordDelivery,
   retireBatterV16,
   setNextBatterV16,
 } from '../data/v16Core';
