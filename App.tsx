@@ -14,7 +14,7 @@ import { TeamsScreen } from './src/screens/TeamsScreen';
 import { TeamEditorScreen } from './src/screens/TeamEditorScreen';
 import { MatchSetupScreen } from './src/screens/MatchSetupScreen';
 import { InningsSetupScreen } from './src/screens/InningsSetupScreen';
-import { ScoringScreen } from './src/screens/ScoringScreen';
+import { ScoringScreenV16 } from './src/screens/ScoringScreenV16';
 import { HistoryScreen } from './src/screens/HistoryScreen';
 import { MatchDetailScreen } from './src/screens/MatchDetailScreen';
 import { LeaderboardsScreen } from './src/screens/LeaderboardsScreen';
@@ -113,7 +113,7 @@ function AppContent() {
           {role === 'admin' && screen === 'teamEditor' && <TeamEditorScreen teamId={teamEditId} onBack={() => setScreen('teams')} onSaved={() => setScreen('teams')} />}
           {role === 'admin' && screen === 'matchSetup' && <MatchSetupScreen onBack={() => setScreen('home')} onTeams={() => setScreen('teams')} onSeasons={() => { setSeasonReturn('matchSetup'); setScreen('seasons'); }} onCreated={id => { setMatchId(id); setMatchReturn('home'); setScreen('inningsSetup'); }} />}
           {role === 'admin' && screen === 'inningsSetup' && matchId != null && <InningsSetupScreen matchId={matchId} onBack={() => setScreen(matchReturn)} onReady={() => setScreen('scoring')} />}
-          {role === 'admin' && screen === 'scoring' && matchId != null && <ScoringScreen matchId={matchId} onBack={() => setScreen(matchReturn)} onNeedSetup={() => setScreen('inningsSetup')} onMatchComplete={() => setScreen('matchDetail')} />}
+          {role === 'admin' && screen === 'scoring' && matchId != null && <ScoringScreenV16 matchId={matchId} onBack={() => setScreen(matchReturn)} onNeedSetup={() => setScreen('inningsSetup')} onMatchComplete={() => setScreen('matchDetail')} />}
 
           {screen === 'history' && <HistoryScreen readOnly={role === 'viewer'} onBack={() => setScreen('home')} onOpen={(id) => openMatch(id, 'history')} />}
           {screen === 'matchDetail' && matchId != null && <MatchDetailScreen readOnly={role === 'viewer'} matchId={matchId} onBack={() => setScreen(matchReturn)} onEdit={role === 'admin' ? () => setScreen('scoring') : undefined} />}
