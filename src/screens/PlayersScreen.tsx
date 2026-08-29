@@ -6,7 +6,7 @@ import { Player } from '../types';
 import { Card, Empty, Field, PrimaryButton, ScreenHeader } from '../components/UI';
 import { colors } from '../theme';
 
-const MAX_PLAYERS = 30;
+const MAX_PLAYERS = 50;
 
 export function PlayersScreen({ onBack }: { onBack: () => void }) {
   const db = useSQLiteContext();
@@ -42,7 +42,7 @@ export function PlayersScreen({ onBack }: { onBack: () => void }) {
 
   const remove = (p: Player) => Alert.alert(
     'Delete player?',
-    `${p.name} will be removed from the Player Bank. Historical match scorecards keep their saved player snapshot.`,
+    `${p.name} will be removed from the Player Bank. Players used in teams or match history cannot be deleted.`,
     [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -63,7 +63,7 @@ export function PlayersScreen({ onBack }: { onBack: () => void }) {
       <Card style={styles.addCard}>
         <Field label="NEW PLAYER" value={newName} onChangeText={setNewName} placeholder="Enter player name" />
         <PrimaryButton label="+ Add Player" onPress={add} disabled={players.length >= MAX_PLAYERS || !newName.trim()} />
-        {players.length >= MAX_PLAYERS ? <Text style={styles.limit}>Maximum 30 players reached.</Text> : null}
+        {players.length >= MAX_PLAYERS ? <Text style={styles.limit}>Maximum 50 players reached.</Text> : null}
       </Card>
 
       <Text style={styles.section}>Players</Text>
