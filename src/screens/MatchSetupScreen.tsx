@@ -3,7 +3,8 @@ import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { getSeasons } from '../data/v14Core';
 import { getTeamV12, getTeamsV12 as getTeams } from '../data/v12Core';
-import { createMatchV16, MatchPlayerSwitch } from '../data/v16Core';
+import { MatchPlayerSwitch } from '../data/v16Core';
+import { createMatchV17, getSeasonRounds, SeasonRound } from '../data/v17Core';
 import { Season, Team, TeamSummary } from '../types';
 import { Card, Chip, Empty, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/UI';
 import { colors } from '../theme';
@@ -13,6 +14,8 @@ export function MatchSetupScreen({ onBack, onCreated, onTeams, onSeasons }: { on
   const [teams, setTeams] = useState<TeamSummary[]>([]);
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [seasonId, setSeasonId] = useState<number | null>(null);
+  const [rounds, setRounds] = useState<SeasonRound[]>([]);
+  const [seasonRoundId, setSeasonRoundId] = useState<number | null>(null);
   const [teamA, setTeamA] = useState<number | null>(null);
   const [teamB, setTeamB] = useState<number | null>(null);
   const [teamAData, setTeamAData] = useState<Team | null>(null);
@@ -22,6 +25,15 @@ export function MatchSetupScreen({ onBack, onCreated, onTeams, onSeasons }: { on
   const [batFirst, setBatFirst] = useState<number | null>(null);
 
   useEffect(() => { Promise.all([getTeams(db), getSeasons(db)]).then(([t, s]) => { setTeams(t); setSeasons(s); }); }, [db]);
+
+  useEffect(() => {
+    setSeasonRoundId(null);
+    if (seasonId == null) {
+      setRounds([]);
+      return;
+    }
+    getSeasonRounds(db, seasonId).then(setRounds);
+  }, [db, seasonId]);
 
   useEffect(() => {
     if (batFirst && batFirst !== teamA && batFirst !== teamB) setBatFirst(null);
@@ -46,6 +58,9 @@ export function MatchSetupScreen({ onBack, onCreated, onTeams, onSeasons }: { on
 
   const start = async () => {
     if (!teamA || !teamB || !batFirst) return Alert.alert('Complete match setup', 'Select both teams and the team batting first.');
+    if (seasonId != null && seasonRoundId == null) {
+      return Alert.alert('Select round / week', rounds.length ? 'Select the round / week this season match belongs to.' : 'Create a round / week inside the selected season before starting a season match.');
+    }
     const switches: MatchPlayerSwitch[] = [];
     for (const p of teamAData?.players ?? []) {
       if (switchTargets[p.id] === teamB) switches.push({ playerId: p.id, fromTeamId: teamA, toTeamId: teamB });
@@ -54,7 +69,7 @@ export function MatchSetupScreen({ onBack, onCreated, onTeams, onSeasons }: { on
       if (switchTargets[p.id] === teamA) switches.push({ playerId: p.id, fromTeamId: teamB, toTeamId: teamA });
     }
     try {
-      const id = await createMatchV16(db, teamA, teamB, overs, batFirst, seasonId, switches);
+      const id = await createMatchV17(db, teamA, teamB, overs, batFirst, seasonId, seasonRoundId, switches);
       onCreated(id);
     } catch (e) {
       Alert.alert('Cannot start match', e instanceof Error ? e.message : String(e));
@@ -84,7 +99,31 @@ export function MatchSetupScreen({ onBack, onCreated, onTeams, onSeasons }: { on
         </View>
         {seasons.length === 0 ? <Text style={styles.helper}>No seasons available yet. You can still score an unassigned match.</Text> : null}
       </Card>
-      <SecondaryButton label="Manage Seasons" onPress={onSeasons} />
+
+      {seasonId != null ? (
+        <>
+          <Text style={styles.section}>Round / Week</Text>
+          <Card style={styles.roundCard}>
+            {rounds.length ? (
+              <View style={styles.chips}>
+                {rounds.map(round => (
+                  <Chip
+                    key={round.id}
+                    label={`${round.name} (${round.matchCount})`}
+                    selected={seasonRoundId === round.id}
+                    onPress={() => setSeasonRoundId(round.id)}
+                  />
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.helper}>This season has no rounds / weeks yet. Create one before starting a season match.</Text>
+            )}
+            <Text style={styles.helper}>Every new season match must belong to a round / week so season history stays organized across the 7–10 week competition.</Text>
+          </Card>
+        </>
+      ) : null}
+
+      <SecondaryButton label="Manage Seasons & Rounds" onPress={onSeasons} />
 
       <Text style={styles.section}>Team A</Text>
       <Card><View style={styles.chips}>{teams.map(t => <Chip key={t.id} label={`${t.name} (${t.playerCount})`} selected={teamA === t.id} disabled={teamB === t.id} onPress={() => setTeamA(t.id)} />)}</View></Card>
@@ -126,6 +165,7 @@ const styles = StyleSheet.create({
   subsection: { color: colors.text, fontSize: 13, fontWeight: '800', marginTop: 4 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   helper: { color: colors.muted, fontSize: 11, marginTop: 4, lineHeight: 16 },
+  roundCard: { gap: 10 },
   switchCard: { gap: 11 },
   switchSummary: { color: colors.primary, fontSize: 12, fontWeight: '800' },
 });
