@@ -4,7 +4,7 @@ import { SafeAreaProvider, SafeAreaView, initialWindowMetrics } from 'react-nati
 import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 import { getCurrentInnings, getMatch } from './src/data/database';
-import { initDatabaseV15 } from './src/data/v15Core';
+import { initDatabaseV16 } from './src/data/v16Core';
 import { colors } from './src/theme';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { HomeScreen } from './src/screens/HomeScreen';
@@ -130,7 +130,7 @@ function AppContent() {
 export default function App() {
   return (
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-      <SQLiteProvider databaseName="local_cricket_scorer.db" onInit={initDatabaseV15}>
+      <SQLiteProvider databaseName="local_cricket_scorer.db" onInit={initDatabaseV16}>
         <StatusBar style="light" />
         <AppContent />
       </SQLiteProvider>
