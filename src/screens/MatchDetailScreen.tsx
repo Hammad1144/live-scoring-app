@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
-import { getMatchDetailV13 as getMatchDetail, reopenMatchForEditing } from '../data/v13Core';
+import { reopenMatchForEditing } from '../data/v13Core';
+import { getMatchDetailV16 as getMatchDetail } from '../data/v16Core';
 import { economy, formatOvers, strikeRate } from '../logic/cricket';
 import { MatchDetail } from '../types';
 import { Card, PrimaryButton, ScreenHeader } from '../components/UI';
