@@ -133,6 +133,7 @@ export function HomeScreen({
                 accessibilityLabel="Refresh from Cloud"
                 disabled={syncing === 'refresh'}
                 onPress={() => performRefresh(false)}
+                hitSlop={8}
                 style={({ pressed }) => [styles.refreshButton, syncing === 'refresh' && styles.refreshDisabled, pressed && syncing !== 'refresh' && { opacity: 0.75 }]}
               >
                 <Text style={styles.refreshIcon}>↻</Text>
