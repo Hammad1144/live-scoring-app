@@ -7,7 +7,7 @@ on:
       - main
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-apk:
@@ -38,6 +38,17 @@ jobs:
       - name: TypeScript check
         run: npm run typecheck
 
+      - name: Read app version
+        id: app
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./app.json').expo.version")
+          APP_NAME=$(node -p "require('./app.json').expo.name")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "app_name=$APP_NAME" >> "$GITHUB_OUTPUT"
+          echo "release_tag=v${VERSION}-build.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "apk_name=Cricket-Zone-App-v${VERSION}-build.${GITHUB_RUN_NUMBER}.apk" >> "$GITHUB_OUTPUT"
+
       - name: Make Gradle wrapper executable
         run: chmod +x android/gradlew
 
@@ -46,12 +57,26 @@ jobs:
         run: ./gradlew assembleRelease --no-daemon
 
       - name: Rename APK
-        run: cp android/app/build/outputs/apk/release/app-release.apk Cricket-Zone-App.apk
+        run: cp android/app/build/outputs/apk/release/app-release.apk "${{ steps.app.outputs.apk_name }}"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Cricket-Zone-App-APK
-          path: Cricket-Zone-App.apk
+          name: Cricket-Zone-App-v${{ steps.app.outputs.version }}-build-${{ github.run_number }}
+          path: ${{ steps.app.outputs.apk_name }}
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.app.outputs.release_tag }}
+          APP_VERSION: ${{ steps.app.outputs.version }}
+          APP_NAME: ${{ steps.app.outputs.app_name }}
+          APK_NAME: ${{ steps.app.outputs.apk_name }}
+        shell: bash
+        run: |
+          gh release create "$RELEASE_TAG" "$APK_NAME" \
+            --target "$GITHUB_SHA" \
+            --title "$APP_NAME v$APP_VERSION • Build $GITHUB_RUN_NUMBER" \
+            --notes "Android APK built automatically from main.\n\nVersion: $APP_VERSION\nBuild: $GITHUB_RUN_NUMBER\nCommit: $GITHUB_SHA"
