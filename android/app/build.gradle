@@ -107,7 +107,7 @@ android {
             minifyEnabled enableMinifyInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
             def enablePngCrunchInRelease = findProperty('android.enablePngCrunchInReleaseBuilds') ?: 'true'
-            crunchPngs enablePngCrunchInReleaseBuilds
+            crunchPngs enablePngCrunchInRelease.toBoolean()
         }
     }
     packagingOptions {
