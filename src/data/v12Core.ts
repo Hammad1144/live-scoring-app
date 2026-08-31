@@ -115,7 +115,7 @@ export async function getTeamV12(db: SQLiteDatabase, teamId: number): Promise<Te
 export async function saveTeamV12(db: SQLiteDatabase, name: string, playerIds: number[], captainId: number | null, viceCaptainId: number | null, teamId?: number) {
   const cleaned = name.trim();
   if (!cleaned) throw new Error('Team name is required.');
-  if (playerIds.length < 2 || playerIds.length > 11) throw new Error('Select between 2 and 11 players.');
+  if (playerIds.length < 2 || playerIds.length > 20) throw new Error('Select between 2 and 20 players.');
   const uniqueIds = [...new Set(playerIds)];
   if (uniqueIds.length !== playerIds.length) throw new Error('Duplicate players are not allowed.');
   if (captainId != null && !uniqueIds.includes(captainId)) throw new Error('Captain must be selected in the squad.');
