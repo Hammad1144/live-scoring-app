@@ -38,27 +38,32 @@ export function HistoryScreen({
     catch (e) { Alert.alert('Export failed', e instanceof Error ? e.message : String(e)); }
   };
 
-  const remove = (match: MatchSummary) => Alert.alert(
-    'Delete match history?',
-    `${match.teamAName} vs ${match.teamBName} and its complete scorecard will be permanently deleted from this device.`,
-    [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try { await deleteMatch(db, match.id); await load(); }
-          catch (e) { Alert.alert('Cannot delete match', e instanceof Error ? e.message : String(e)); }
+  const remove = (match: MatchSummary) => {
+    const inProgress = match.status !== 'COMPLETE';
+    Alert.alert(
+      inProgress ? 'Delete in-progress match?' : 'Delete match history?',
+      inProgress
+        ? `${match.teamAName} vs ${match.teamBName} is still in progress. All recorded balls, current innings state and match roster will be permanently deleted. This cannot be undone.`
+        : `${match.teamAName} vs ${match.teamBName} and its complete scorecard will be permanently deleted from this device.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try { await deleteMatch(db, match.id); await load(); }
+            catch (e) { Alert.alert('Cannot delete match', e instanceof Error ? e.message : String(e)); }
+          },
         },
-      },
-    ],
-  );
+      ],
+    );
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <ScreenHeader
         title="Match History"
-        subtitle={readOnly ? 'Read-only match summaries and scorecards' : 'Review, export, import or remove completed matches'}
+        subtitle={readOnly ? 'Read-only match summaries and scorecards' : 'Review, export, import or remove matches'}
         onBack={onBack}
       />
 
@@ -85,9 +90,11 @@ export function HistoryScreen({
             </Text>
           </Pressable>
 
-          {!readOnly && m.status === 'COMPLETE' ? (
+          {!readOnly ? (
             <View style={styles.actions}>
-              <Pressable style={styles.action} onPress={() => exportSummary(m)}><Text style={styles.actionText}>Export</Text></Pressable>
+              {m.status === 'COMPLETE' ? (
+                <Pressable style={styles.action} onPress={() => exportSummary(m)}><Text style={styles.actionText}>Export</Text></Pressable>
+              ) : null}
               <Pressable style={[styles.action, styles.deleteAction]} onPress={() => remove(m)}><Text style={styles.deleteText}>Delete</Text></Pressable>
             </View>
           ) : null}

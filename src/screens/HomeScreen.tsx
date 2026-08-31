@@ -123,71 +123,87 @@ export function HomeScreen({
         subtitle={isAdmin ? 'Admin access • Full scoring controls' : 'View access • Read-only cricket records'}
       />
 
-      <Card style={styles.hero}>
-        <View style={styles.heroTopRow}>
-          <Text style={styles.eyebrow}>{isAdmin ? 'ADMIN MODE' : 'VIEW ONLY'}</Text>
-          <View style={styles.rolePill}><Text style={styles.rolePillText}>{isAdmin ? 'Admin' : 'Viewer'}</Text></View>
-        </View>
-        <Text style={styles.heroTitle}>{isAdmin ? 'Start a 1–10 over match' : 'Follow matches and player performance'}</Text>
-        <Text style={styles.heroText}>
-          {isAdmin
-            ? 'Score matches, manage players and teams, organize seasons, and review performance.'
-            : 'Browse match summaries, season rankings, leaderboards and player profiles. No data can be changed in View Access.'}
-        </Text>
-        {isAdmin ? <PrimaryButton label="+ New Match" onPress={() => onNavigate('matchSetup')} /> : null}
-      </Card>
+      {isAdmin ? (
+        <Card style={styles.hero}>
+          <View style={styles.heroTopRow}>
+            <Text style={styles.eyebrow}>ADMIN MODE</Text>
+            <View style={styles.rolePill}><Text style={styles.rolePillText}>Admin</Text></View>
+          </View>
+          <Text style={styles.heroTitle}>Start a 1–10 over match</Text>
+          <Text style={styles.heroText}>Score matches, manage players and teams, organize seasons, and review performance.</Text>
+          <PrimaryButton label="+ New Match" onPress={() => onNavigate('matchSetup')} />
+        </Card>
+      ) : null}
 
-      <Card style={styles.cloudCard}>
-        <View style={styles.cloudHeader}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.cloudTitle}>Cloud Sync</Text>
-            <Text style={styles.cloudMeta}>{summaryText(syncStatus)}</Text>
+      {isAdmin ? (
+        <Card style={styles.cloudCard}>
+          <View style={styles.cloudHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.cloudTitle}>Cloud Sync</Text>
+              <Text style={styles.cloudMeta}>{summaryText(syncStatus)}</Text>
+            </View>
+            <View style={[styles.syncPill, syncStatus?.localDirty ? styles.unsavedPill : null]}>
+              <Text style={[styles.syncPillText, syncStatus?.localDirty ? styles.unsavedText : null]}>
+                {syncStatus?.localDirty ? 'Unsaved changes' : 'Synced'}
+              </Text>
+            </View>
           </View>
-          <View style={[styles.syncPill, syncStatus?.localDirty ? styles.unsavedPill : null]}>
-            <Text style={[styles.syncPillText, syncStatus?.localDirty ? styles.unsavedText : null]}>
-              {syncStatus?.localDirty ? 'Unsaved changes' : 'Synced'}
-            </Text>
-          </View>
-        </View>
 
-        {syncStatus ? (
-          <View style={styles.cloudFacts}>
-            <Text style={styles.fact}>Cloud version: {syncStatus.cloudVersion}</Text>
-            <Text style={styles.fact}>Cloud updated: {formatDate(syncStatus.cloudUpdatedAt)}</Text>
-            <Text style={styles.fact}>Last synced on device: {formatDate(syncStatus.lastSyncedAt)}</Text>
-          </View>
-        ) : null}
-        {syncError ? <Text style={styles.cloudError}>Cloud unavailable: {syncError}</Text> : null}
+          {syncStatus ? (
+            <View style={styles.cloudFacts}>
+              <Text style={styles.fact}>Cloud version: {syncStatus.cloudVersion}</Text>
+              <Text style={styles.fact}>Cloud updated: {formatDate(syncStatus.cloudUpdatedAt)}</Text>
+              <Text style={styles.fact}>Last synced on device: {formatDate(syncStatus.lastSyncedAt)}</Text>
+            </View>
+          ) : null}
+          {syncError ? <Text style={styles.cloudError}>Cloud unavailable: {syncError}</Text> : null}
 
-        <View style={styles.cloudActions}>
-          <View style={{ flex: 1 }}>
-            <SecondaryButton
-              label={syncing === 'refresh' ? 'Refreshing…' : 'Refresh from Cloud'}
-              onPress={() => performRefresh(false)}
-            />
-          </View>
-          {isAdmin ? (
+          <View style={styles.cloudActions}>
+            <View style={{ flex: 1 }}>
+              <SecondaryButton
+                label={syncing === 'refresh' ? 'Refreshing…' : 'Refresh from Cloud'}
+                onPress={() => performRefresh(false)}
+              />
+            </View>
             <View style={{ flex: 1 }}>
               <PrimaryButton
                 label={syncing === 'save' ? 'Saving…' : 'Save to Cloud'}
                 onPress={() => performSave(false)}
               />
             </View>
-          ) : null}
-        </View>
-        <Text style={styles.cloudHint}>
-          {isAdmin
-            ? 'Save uploads the complete local state, including an in-progress match. Refresh replaces local cricket data with the latest cloud snapshot.'
-            : 'View Access can refresh the latest cloud snapshot but cannot upload or change cloud data.'}
-        </Text>
-      </Card>
+          </View>
+          <Text style={styles.cloudHint}>Save uploads the complete local state, including an in-progress match. Refresh replaces local cricket data with the latest cloud snapshot.</Text>
+        </Card>
+      ) : null}
 
-      <Text style={styles.section}>{isAdmin ? 'Manage' : 'Browse'}</Text>
+      {isAdmin ? (
+        <Text style={styles.section}>Manage</Text>
+      ) : (
+        <View style={styles.browseHeader}>
+          <Text style={styles.section}>Browse</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Refresh from Cloud"
+            disabled={syncing === 'refresh'}
+            onPress={() => performRefresh(false)}
+            hitSlop={8}
+            style={({ pressed }) => [
+              styles.refreshButton,
+              syncing === 'refresh' && styles.refreshDisabled,
+              pressed && syncing !== 'refresh' && { opacity: 0.75 },
+            ]}
+          >
+            <Text style={styles.refreshIcon}>{syncing === 'refresh' ? '…' : '⟳'}</Text>
+            <Text style={styles.refreshText}>{syncing === 'refresh' ? 'Refreshing…' : 'Refresh'}</Text>
+          </Pressable>
+        </View>
+      )}
+
       <View style={styles.grid}>
         {isAdmin ? (
           <>
             <Pressable style={styles.tile} onPress={() => onNavigate('players')}><Text style={styles.tileIcon}>👤</Text><Text style={styles.tileTitle}>Player Bank</Text><Text style={styles.tileMeta}>Up to 50 players</Text></Pressable>
-            <Pressable style={styles.tile} onPress={() => onNavigate('teams')}><Text style={styles.tileIcon}>🛡️</Text><Text style={styles.tileTitle}>Team Bank</Text><Text style={styles.tileMeta}>Reusable squads</Text></Pressable>
+            <Pressable style={styles.tile} onPress={() => onNavigate('teams')}><Text style={styles.tileIcon}>🛡️</Text><Text style={styles.tileTitle}>Team Bank</Text><Text style={styles.tileMeta}>Up to 20 per squad</Text></Pressable>
           </>
         ) : null}
         <Pressable style={styles.tile} onPress={() => onNavigate('playerDirectory')}><Text style={styles.tileIcon}>🔎</Text><Text style={styles.tileTitle}>Player Profiles</Text><Text style={styles.tileMeta}>Search performance</Text></Pressable>
@@ -220,6 +236,10 @@ const styles = StyleSheet.create({
   eyebrow: { color: colors.primary, fontSize: 12, fontWeight: '900', letterSpacing: 1.5 },
   rolePill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
   rolePillText: { color: colors.text, fontSize: 10, fontWeight: '800' },
+  refreshButton: { minHeight: 38, paddingHorizontal: 12, borderRadius: 19, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  refreshDisabled: { opacity: 0.45 },
+  refreshIcon: { color: colors.primary, fontSize: 18, lineHeight: 18, fontWeight: '900', textAlign: 'center', includeFontPadding: false },
+  refreshText: { color: colors.primary, fontSize: 12, fontWeight: '900' },
   heroTitle: { color: colors.text, fontSize: 28, lineHeight: 33, fontWeight: '900' },
   heroText: { color: colors.muted, lineHeight: 21, marginBottom: 4 },
   cloudCard: { gap: 12 },
@@ -236,6 +256,7 @@ const styles = StyleSheet.create({
   cloudActions: { flexDirection: 'row', gap: 10 },
   cloudHint: { color: colors.muted, fontSize: 10, lineHeight: 15 },
   section: { color: colors.text, fontSize: 18, fontWeight: '800', marginTop: 8 },
+  browseHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 42 },
   sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   link: { color: colors.primary, fontWeight: '700' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },

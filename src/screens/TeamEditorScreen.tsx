@@ -33,7 +33,7 @@ export function TeamEditorScreen({ teamId, onBack, onSaved }: { teamId?: number;
       if (viceCaptainId === id) setViceCaptainId(null);
       return s.filter(x => x !== id);
     }
-    return s.length < 11 ? [...s, id] : s;
+    return s.length < 20 ? [...s, id] : s;
   });
 
   const selectCaptain = (id: number) => {
@@ -58,11 +58,11 @@ export function TeamEditorScreen({ teamId, onBack, onSaved }: { teamId?: number;
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <ScreenHeader title={teamId ? 'Edit Team' : 'Create Team'} subtitle="Select 2–11 players, then optionally assign Captain and Vice Captain." onBack={onBack} />
+      <ScreenHeader title={teamId ? 'Edit Team' : 'Create Team'} subtitle="Select 2–20 players, then optionally assign Captain and Vice Captain." onBack={onBack} />
       <Field label="TEAM NAME" value={name} onChangeText={setName} placeholder="e.g. Karachi Strikers" />
-      <View style={styles.row}><Text style={styles.section}>Squad</Text><Text style={styles.count}>{selected.length}/11 selected</Text></View>
+      <View style={styles.row}><Text style={styles.section}>Squad</Text><Text style={styles.count}>{selected.length}/20 selected</Text></View>
       {players.length === 0 ? <Empty text="Add players to the Player Bank before creating a team." /> : (
-        <Card><View style={styles.chips}>{players.map(p => <Chip key={p.id} label={p.name} selected={selected.includes(p.id)} onPress={() => toggle(p.id)} disabled={!selected.includes(p.id) && selected.length >= 11} />)}</View></Card>
+        <Card><View style={styles.chips}>{players.map(p => <Chip key={p.id} label={p.name} selected={selected.includes(p.id)} onPress={() => toggle(p.id)} disabled={!selected.includes(p.id) && selected.length >= 20} />)}</View></Card>
       )}
 
       {selectedPlayers.length ? (
@@ -76,7 +76,7 @@ export function TeamEditorScreen({ teamId, onBack, onSaved }: { teamId?: number;
         </>
       ) : null}
 
-      <PrimaryButton label="Save Team" onPress={save} disabled={players.length < 2} />
+      <PrimaryButton label="Save Team" onPress={save} disabled={selected.length < 2} />
     </ScrollView>
   );
 }

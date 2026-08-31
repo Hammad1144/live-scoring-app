@@ -19,7 +19,6 @@ export async function endMatch(db: SQLiteDatabase, matchId: number) {
 
 export async function deleteMatch(db: SQLiteDatabase, matchId: number) {
   const match = await getMatch(db, matchId);
-  if (match.status !== 'COMPLETE') throw new Error('End an ongoing match before deleting it from history.');
   const teamIds = [match.team_a_id, match.team_b_id];
   await db.runAsync('DELETE FROM matches WHERE id = ?', matchId);
   for (const teamId of teamIds) {

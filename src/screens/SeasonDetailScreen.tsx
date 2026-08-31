@@ -68,8 +68,6 @@ export function SeasonDetailScreen({
 
   if (!season) return null;
 
-  const assignedMatches = rounds.reduce((sum, round) => sum + round.matchCount, 0);
-
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
       <ScreenHeader
@@ -85,14 +83,6 @@ export function SeasonDetailScreen({
 
       {tab === 'matches' ? (
         <>
-          <Card style={styles.info}>
-            <Text style={styles.infoTitle}>Season Match Structure</Text>
-            <Text style={styles.infoText}>
-              Organize the season into flexible rounds such as Week 1, Week 2, Finals or Tournament A. Matches live inside a round, while rankings continue to use the complete season.
-            </Text>
-            <Text style={styles.structureMeta}>{rounds.length} rounds / weeks • {assignedMatches} assigned matches</Text>
-          </Card>
-
           {!readOnly ? (
             <Card style={styles.form}>
               <Text style={styles.section}>Add Round / Week</Text>
@@ -182,7 +172,6 @@ const styles = StyleSheet.create({
   info: { backgroundColor: '#0e2b1f' },
   infoTitle: { color: colors.primary, fontWeight: '900', fontSize: 16 },
   infoText: { color: colors.muted, marginTop: 7, lineHeight: 18, fontSize: 12 },
-  structureMeta: { color: colors.primary, fontSize: 11, fontWeight: '800', marginTop: 10 },
   form: { gap: 12 },
   formHint: { color: colors.muted, fontSize: 11, lineHeight: 16 },
   dateRow: { flexDirection: 'row', gap: 10 },
