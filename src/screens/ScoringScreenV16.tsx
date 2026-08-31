@@ -179,6 +179,38 @@ export function ScoringScreenV16({
     }
   };
 
+  const rotateStrike = () => {
+    if (!live || !live.innings.striker_id || !live.innings.non_striker_id) {
+      Alert.alert('Rotate strike', 'Both batting ends must be occupied before strike can be rotated.');
+      return;
+    }
+    const strikerId = Number(live.innings.striker_id);
+    const nonStrikerId = Number(live.innings.non_striker_id);
+    Alert.alert(
+      'Rotate strike?',
+      `${live.nonStrikerName ?? 'Non-striker'} will become striker and ${live.strikerName ?? 'Striker'} will move to the non-striker end. No ball or run will be recorded.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Rotate',
+          onPress: async () => {
+            try {
+              await db.runAsync(
+                'UPDATE innings SET striker_id=?, non_striker_id=? WHERE id=?',
+                nonStrikerId,
+                strikerId,
+                live.innings.id,
+              );
+              await load();
+            } catch (e) {
+              Alert.alert('Unable to rotate strike', e instanceof Error ? e.message : String(e));
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const wicketTypes = useMemo<WicketType[]>(() => {
     if (wicketDelivery === 'noBall') return ['Run Out'];
     if (wicketDelivery === 'wide') return ['Run Out', 'Stumped'];
@@ -270,6 +302,8 @@ export function ScoringScreenV16({
   const sheetBottomPadding = Math.max(insets.bottom, 12) + 18;
   const wicketNeedsFielder = wicketType === 'Caught' || wicketType === 'Run Out' || wicketType === 'Stumped';
   const fielderLabel = wicketType === 'Caught' ? 'Caught by' : wicketType === 'Run Out' ? 'Run out by' : 'Stumped by';
+  const canDeclare = Boolean(innings.striker_id || innings.non_striker_id);
+  const canRotate = Boolean(innings.striker_id && innings.non_striker_id);
 
   return (
     <View style={styles.root}>
@@ -397,10 +431,27 @@ export function ScoringScreenV16({
             >
               <Text style={styles.wicketText}>WICKET</Text>
             </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.actionButton, pressed && styles.pressed]}
+              onPress={undo}
+            >
+              <Text style={styles.actionText}>↶ Undo Ball</Text>
+            </Pressable>
+            <Pressable
+              disabled={!canDeclare}
+              style={({ pressed }) => [styles.actionButton, !canDeclare && styles.disabledAction, pressed && canDeclare && styles.pressed]}
+              onPress={() => setDeclareOpen(true)}
+            >
+              <Text style={styles.actionText}>Declare Batter</Text>
+            </Pressable>
+            <Pressable
+              disabled={!canRotate}
+              style={({ pressed }) => [styles.actionButton, !canRotate && styles.disabledAction, pressed && canRotate && styles.pressed]}
+              onPress={rotateStrike}
+            >
+              <Text style={styles.actionText}>⇄ Rotate Strike</Text>
+            </Pressable>
           </View>
-
-          <SecondaryButton label="↶ Undo Last Ball" onPress={undo} />
-          <SecondaryButton label="Declare Batter" onPress={() => setDeclareOpen(true)} disabled={!innings.striker_id && !innings.non_striker_id} />
         </View>
       </ScrollView>
 
@@ -626,10 +677,11 @@ const styles = StyleSheet.create({
   deadRunHint: { color: colors.primary, fontSize: 9, fontWeight: '800', marginTop: 1 },
   deadRunHelp: { color: colors.primary, fontSize: 11, fontWeight: '700' },
   actionGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 10 },
-  actionButton: { width: '48.5%', height: 52, borderRadius: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  wicketAction: { width: '100%', borderColor: colors.danger, backgroundColor: '#3a1718' },
-  actionText: { color: colors.text, fontWeight: '800' },
+  actionButton: { width: '48.5%', height: 52, borderRadius: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
+  wicketAction: { borderColor: colors.danger, backgroundColor: '#3a1718' },
+  actionText: { color: colors.text, fontWeight: '800', textAlign: 'center' },
   wicketText: { color: '#ff9b9b', fontWeight: '900', letterSpacing: 1 },
+  disabledAction: { opacity: 0.4 },
   pressed: { opacity: 0.72 },
   modalShade: { flex: 1, backgroundColor: 'rgba(0,0,0,0.68)', justifyContent: 'flex-end', alignItems: 'center' },
   wicketSheetScroll: { width: '100%' },
