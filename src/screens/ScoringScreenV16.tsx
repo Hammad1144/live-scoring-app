@@ -188,7 +188,7 @@ export function ScoringScreenV16({
     const nonStrikerId = Number(live.innings.non_striker_id);
     Alert.alert(
       'Rotate strike?',
-      `${live.nonStrikerName ?? 'Non-striker'} will become striker and ${live.strikerName ?? 'Striker'} will move to the non-striker end. No ball or run will be recorded.`,
+      `${live.nonStrikerName ?? 'Non-striker'} will become striker and ${live.strikerName ?? 'Striker'} will move to the non-striker end. No ball, run, or player statistic will be recorded.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
