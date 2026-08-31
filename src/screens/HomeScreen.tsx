@@ -123,33 +123,17 @@ export function HomeScreen({
         subtitle={isAdmin ? 'Admin access • Full scoring controls' : 'View access • Read-only cricket records'}
       />
 
-      <Card style={styles.hero}>
-        <View style={styles.heroTopRow}>
-          <Text style={styles.eyebrow}>{isAdmin ? 'ADMIN MODE' : 'VIEW ONLY'}</Text>
-          <View style={styles.heroActions}>
-            {!isAdmin ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Refresh from Cloud"
-                disabled={syncing === 'refresh'}
-                onPress={() => performRefresh(false)}
-                hitSlop={8}
-                style={({ pressed }) => [styles.refreshButton, syncing === 'refresh' && styles.refreshDisabled, pressed && syncing !== 'refresh' && { opacity: 0.75 }]}
-              >
-                <Text style={styles.refreshIcon}>↻</Text>
-              </Pressable>
-            ) : null}
-            <View style={styles.rolePill}><Text style={styles.rolePillText}>{isAdmin ? 'Admin' : 'Viewer'}</Text></View>
+      {isAdmin ? (
+        <Card style={styles.hero}>
+          <View style={styles.heroTopRow}>
+            <Text style={styles.eyebrow}>ADMIN MODE</Text>
+            <View style={styles.rolePill}><Text style={styles.rolePillText}>Admin</Text></View>
           </View>
-        </View>
-        <Text style={styles.heroTitle}>{isAdmin ? 'Start a 1–10 over match' : 'Follow matches and player performance'}</Text>
-        <Text style={styles.heroText}>
-          {isAdmin
-            ? 'Score matches, manage players and teams, organize seasons, and review performance.'
-            : 'Browse match summaries, season rankings, leaderboards and player profiles. No data can be changed in View Access.'}
-        </Text>
-        {isAdmin ? <PrimaryButton label="+ New Match" onPress={() => onNavigate('matchSetup')} /> : null}
-      </Card>
+          <Text style={styles.heroTitle}>Start a 1–10 over match</Text>
+          <Text style={styles.heroText}>Score matches, manage players and teams, organize seasons, and review performance.</Text>
+          <PrimaryButton label="+ New Match" onPress={() => onNavigate('matchSetup')} />
+        </Card>
+      ) : null}
 
       {isAdmin ? (
         <Card style={styles.cloudCard}>
@@ -192,7 +176,28 @@ export function HomeScreen({
         </Card>
       ) : null}
 
-      <Text style={styles.section}>{isAdmin ? 'Manage' : 'Browse'}</Text>
+      {isAdmin ? (
+        <Text style={styles.section}>Manage</Text>
+      ) : (
+        <View style={styles.browseHeader}>
+          <Text style={styles.section}>Browse</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Refresh from Cloud"
+            disabled={syncing === 'refresh'}
+            onPress={() => performRefresh(false)}
+            hitSlop={8}
+            style={({ pressed }) => [
+              styles.refreshButton,
+              syncing === 'refresh' && styles.refreshDisabled,
+              pressed && syncing !== 'refresh' && { opacity: 0.75 },
+            ]}
+          >
+            <Text style={styles.refreshIcon}>{syncing === 'refresh' ? '…' : '⟳'}</Text>
+          </Pressable>
+        </View>
+      )}
+
       <View style={styles.grid}>
         {isAdmin ? (
           <>
@@ -227,13 +232,12 @@ const styles = StyleSheet.create({
   container: { padding: 18, paddingBottom: 40, backgroundColor: colors.bg, gap: 14 },
   hero: { gap: 12, padding: 20 },
   heroTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  heroActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   eyebrow: { color: colors.primary, fontSize: 12, fontWeight: '900', letterSpacing: 1.5 },
   rolePill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
   rolePillText: { color: colors.text, fontSize: 10, fontWeight: '800' },
-  refreshButton: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  refreshButton: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   refreshDisabled: { opacity: 0.45 },
-  refreshIcon: { color: colors.primary, fontSize: 21, lineHeight: 22, fontWeight: '900' },
+  refreshIcon: { color: colors.primary, fontSize: 20, lineHeight: 20, fontWeight: '900', textAlign: 'center', includeFontPadding: false },
   heroTitle: { color: colors.text, fontSize: 28, lineHeight: 33, fontWeight: '900' },
   heroText: { color: colors.muted, lineHeight: 21, marginBottom: 4 },
   cloudCard: { gap: 12 },
@@ -250,6 +254,7 @@ const styles = StyleSheet.create({
   cloudActions: { flexDirection: 'row', gap: 10 },
   cloudHint: { color: colors.muted, fontSize: 10, lineHeight: 15 },
   section: { color: colors.text, fontSize: 18, fontWeight: '800', marginTop: 8 },
+  browseHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 42 },
   sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   link: { color: colors.primary, fontWeight: '700' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
