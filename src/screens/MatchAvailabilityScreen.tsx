@@ -82,8 +82,13 @@ export function MatchAvailabilityScreen({
   const start = async () => {
     if (starting) return;
     setStarting(true);
-    try { await onStart(); }
-    finally { setStarting(false); }
+    try {
+      await onStart();
+    } catch (error) {
+      Alert.alert('Cannot start match', error instanceof Error ? error.message : String(error));
+    } finally {
+      setStarting(false);
+    }
   };
 
   if (!teamA || !teamB) {
