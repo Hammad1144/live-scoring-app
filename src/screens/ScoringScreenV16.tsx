@@ -486,7 +486,12 @@ export function ScoringScreenV16({
 
       <Modal transparent visible={wicketOpen} animationType="slide" onRequestClose={() => setWicketOpen(false)}>
         <View style={styles.modalShade}>
-          <ScrollView contentContainerStyle={styles.modalWrap} keyboardShouldPersistTaps="handled">
+          <ScrollView
+            style={styles.wicketSheetScroll}
+            contentContainerStyle={styles.modalWrap}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
             <View style={[styles.modalCard, { paddingBottom: sheetBottomPadding }]}>
               <Text style={styles.modalTitle}>Record Wicket</Text>
               <Text style={styles.modalHint}>Delivery</Text>
@@ -513,9 +518,9 @@ export function ScoringScreenV16({
               {wicketNeedsFielder ? (
                 <>
                   <Text style={styles.modalHint}>{fielderLabel}</Text>
-                  <ScrollView style={styles.fielderScroll} contentContainerStyle={styles.chips} keyboardShouldPersistTaps="handled">
+                  <View style={styles.fielderList}>
                     {fielders.map(p => <Chip key={p.id} label={p.name} selected={fielderId === p.id} onPress={() => setFielderId(p.id)} />)}
-                  </ScrollView>
+                  </View>
                 </>
               ) : null}
               <PrimaryButton label="Record Wicket" onPress={submitWicket} danger disabled={wicketNeedsFielder && !fielderId} />
@@ -627,13 +632,14 @@ const styles = StyleSheet.create({
   wicketText: { color: '#ff9b9b', fontWeight: '900', letterSpacing: 1 },
   pressed: { opacity: 0.72 },
   modalShade: { flex: 1, backgroundColor: 'rgba(0,0,0,0.68)', justifyContent: 'flex-end', alignItems: 'center' },
-  modalWrap: { flexGrow: 1, justifyContent: 'flex-end', alignItems: 'center', width: '100%' },
+  wicketSheetScroll: { width: '100%' },
+  modalWrap: { flexGrow: 1, justifyContent: 'flex-end', alignItems: 'center', width: '100%', maxWidth: '100%' },
   modalCard: { width: '100%', maxWidth: 620, backgroundColor: colors.surface, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, gap: 14, borderWidth: 1, borderColor: colors.border },
   modalTitle: { color: colors.text, fontSize: 23, fontWeight: '900' },
   modalHint: { color: colors.muted, fontSize: 13, fontWeight: '700' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   pickerScroll: { maxHeight: 240 },
-  fielderScroll: { maxHeight: 160 },
+  fielderList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, width: '100%', alignSelf: 'stretch' },
   guestBox: { gap: 10, borderTopWidth: 1, borderColor: colors.border, paddingTop: 12 },
   guestHint: { color: colors.muted, fontSize: 10, lineHeight: 15 },
   declareOption: { minHeight: 64, borderRadius: 15, borderWidth: 1, borderColor: colors.warning, backgroundColor: colors.surface2, paddingHorizontal: 15, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', gap: 12 },
