@@ -7,12 +7,13 @@ import { LeaderboardRow, Season } from '../types';
 import { Card, Chip, Empty, ScreenHeader } from '../components/UI';
 import { colors } from '../theme';
 
-type Board = 'runs' | 'sixes' | 'wickets' | 'catches' | 'economy';
+type Board = 'runs' | 'sixes' | 'wickets' | 'catches' | 'runOuts' | 'economy';
 type BoardsData = {
   topScorers: LeaderboardRow[];
   mostSixes: LeaderboardRow[];
   mostWickets: LeaderboardRow[];
   mostCatches: LeaderboardRow[];
+  mostRunOuts: LeaderboardRow[];
   bestEconomy: LeaderboardRow[];
 };
 
@@ -34,7 +35,9 @@ export function LeaderboardsScreen({ onBack, onPlayer }: { onBack: () => void; o
         ? data?.mostWickets
         : board === 'catches'
           ? data?.mostCatches
-          : data?.bestEconomy;
+          : board === 'runOuts'
+            ? data?.mostRunOuts
+            : data?.bestEconomy;
 
   const selectedSeason = seasons.find(s => s.id === seasonId);
 
@@ -60,6 +63,7 @@ export function LeaderboardsScreen({ onBack, onPlayer }: { onBack: () => void; o
         <Chip label="Most Sixes" selected={board === 'sixes'} onPress={() => setBoard('sixes')} />
         <Chip label="Most Wickets" selected={board === 'wickets'} onPress={() => setBoard('wickets')} />
         <Chip label="Most Catches" selected={board === 'catches'} onPress={() => setBoard('catches')} />
+        <Chip label="Most Run Outs" selected={board === 'runOuts'} onPress={() => setBoard('runOuts')} />
         <Chip label="Best Economy" selected={board === 'economy'} onPress={() => setBoard('economy')} />
       </View>
       <View style={{ height: 10 }} />

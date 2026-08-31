@@ -88,6 +88,28 @@ export async function getLeaderboardsV12(db: SQLiteDatabase, seasonId: number | 
     ORDER BY s.value DESC, s.name LIMIT 20
   `, seasonId, seasonId, seasonId, seasonId);
 
+  const runOutRows = await db.getAllAsync<{ playerId: number; name: string; value: number; matches: number }>(`
+    WITH appearances AS (
+      SELECT mp.player_name AS name, COUNT(DISTINCT mp.match_id) AS matches
+      FROM match_players mp
+      JOIN matches m ON m.id=mp.match_id
+      WHERE (? IS NULL OR m.season_id=?)
+      GROUP BY mp.player_name
+    ), stats AS (
+      SELECT MIN(d.fielder_id) AS playerId, mp.player_name AS name, COUNT(*) AS value
+      FROM deliveries d
+      JOIN matches m ON m.id=d.match_id
+      JOIN match_players mp ON mp.match_id=d.match_id AND mp.player_id=d.fielder_id
+      WHERE d.wicket=1 AND d.wicket_type='Run Out' AND d.fielder_id IS NOT NULL
+        AND (? IS NULL OR m.season_id=?)
+      GROUP BY mp.player_name
+    )
+    SELECT s.playerId, s.name, s.value, a.matches
+    FROM stats s JOIN appearances a ON a.name=s.name
+    WHERE s.value > 0
+    ORDER BY s.value DESC, s.name LIMIT 20
+  `, seasonId, seasonId, seasonId, seasonId);
+
   const economyRows = await db.getAllAsync<{ playerId: number; name: string; legalBalls: number; runs: number; matches: number }>(`
     WITH appearances AS (
       SELECT mp.player_name AS name, COUNT(DISTINCT mp.match_id) AS matches
@@ -124,6 +146,7 @@ export async function getLeaderboardsV12(db: SQLiteDatabase, seasonId: number | 
     mostSixes: sixRows.map(r => ({ playerId: r.playerId, name: r.name, value: r.value, secondary: matchLabel(r.matches) })),
     mostWickets: wicketRows.map(r => ({ playerId: r.playerId, name: r.name, value: r.value, secondary: matchLabel(r.matches) })),
     mostCatches: catchRows.map(r => ({ playerId: r.playerId, name: r.name, value: r.value, secondary: matchLabel(r.matches) })),
+    mostRunOuts: runOutRows.map(r => ({ playerId: r.playerId, name: r.name, value: r.value, secondary: matchLabel(r.matches) })),
     bestEconomy,
   };
 }
