@@ -41,7 +41,8 @@ export async function repairCompletedMatchResults(db: SQLiteDatabase) {
     SET result_text = ${expression}
     WHERE status='COMPLETE'
       AND EXISTS (SELECT 1 FROM innings i1 WHERE i1.match_id=matches.id AND i1.innings_no=1)
-      AND EXISTS (SELECT 1 FROM innings i2 WHERE i2.match_id=matches.id AND i2.innings_no=2);
+      AND EXISTS (SELECT 1 FROM innings i2 WHERE i2.match_id=matches.id AND i2.innings_no=2)
+      AND COALESCE(result_text, '') <> COALESCE((${expression}), '');
   `);
 }
 
