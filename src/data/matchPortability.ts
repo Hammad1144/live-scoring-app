@@ -19,8 +19,10 @@ export async function endMatch(db: SQLiteDatabase, matchId: number) {
 
 export async function deleteMatch(db: SQLiteDatabase, matchId: number) {
   const match = await getMatch(db, matchId);
-  if (match.status !== 'COMPLETE') throw new Error('End an ongoing match before deleting it from history.');
   const teamIds = [match.team_a_id, match.team_b_id];
+  // Matches own their innings, deliveries, match-player roster and declaration rows through
+  // cascading foreign keys. Deleting the match is therefore safe for both completed and
+  // in-progress matches and does not alter permanent Team Bank or Player Bank records.
   await db.runAsync('DELETE FROM matches WHERE id = ?', matchId);
   for (const teamId of teamIds) {
     const archived = await db.getFirstAsync<{ archived: number }>('SELECT archived FROM teams WHERE id = ?', teamId);
@@ -118,11 +120,6 @@ export async function importMatchPackage(db: SQLiteDatabase, payload: PortableMa
         INSERT INTO match_players(match_id, team_id, player_id, player_name, batting_order, is_captain, is_vice_captain)
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `, newMatchId, mappedTeam, p.playerId, p.playerName, p.battingOrder, p.isCaptain ? 1 : 0, p.isViceCaptain ? 1 : 0);
-      // The local snapshot trigger may run for newly inserted rows; restore the exported leadership flags explicitly.
-      await db.runAsync(
-        'UPDATE match_players SET is_captain = ?, is_vice_captain = ? WHERE match_id = ? AND team_id = ? AND player_id = ?',
-        p.isCaptain ? 1 : 0, p.isViceCaptain ? 1 : 0, newMatchId, mappedTeam, p.playerId,
-      );
     }
 
     const inningsMap = new Map<number, number>();
@@ -130,32 +127,34 @@ export async function importMatchPackage(db: SQLiteDatabase, payload: PortableMa
       const battingTeam = teamMap.get(i.battingTeamId);
       const bowlingTeam = teamMap.get(i.bowlingTeamId);
       if (!battingTeam || !bowlingTeam) throw new Error('Unable to map imported innings teams.');
-      const inserted = await db.runAsync(`
-        INSERT INTO innings(match_id, innings_no, batting_team_id, bowling_team_id, runs, wickets, legal_balls, wides,
-          no_balls, byes, leg_byes, striker_id, non_striker_id, bowler_id, last_bowler_id, completed, target)
+      const inningsResult = await db.runAsync(`
+        INSERT INTO innings(match_id, innings_no, batting_team_id, bowling_team_id, runs, wickets, legal_balls,
+          wides, no_balls, byes, leg_byes, striker_id, non_striker_id, bowler_id, last_bowler_id, completed, target)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, newMatchId, i.inningsNo, battingTeam, bowlingTeam, i.runs, i.wickets, i.legalBalls, i.wides,
-        i.noBalls, i.byes, i.legByes, i.strikerId, i.nonStrikerId, i.bowlerId, i.lastBowlerId, 1, i.target);
-      inningsMap.set(i.sourceInningsId, Number(inserted.lastInsertRowId));
+      `, newMatchId, i.inningsNo, battingTeam, bowlingTeam, i.runs, i.wickets, i.legalBalls,
+        i.wides, i.noBalls, i.byes, i.legByes, i.strikerId, i.nonStrikerId, i.bowlerId, i.lastBowlerId, i.completed, i.target);
+      inningsMap.set(i.sourceInningsId, Number(inningsResult.lastInsertRowId));
     }
 
     for (const d of payload.deliveries) {
-      const inningsId = inningsMap.get(d.sourceInningsId);
-      if (!inningsId) throw new Error('Unable to map an imported delivery innings.');
+      const mappedInningsId = inningsMap.get(d.sourceInningsId);
+      if (!mappedInningsId) throw new Error('Unable to map imported delivery innings.');
       await db.runAsync(`
         INSERT INTO deliveries(match_id, innings_id, seq, over_no, ball_in_over, striker_id, non_striker_id, bowler_id,
-          bat_runs, wide_runs, no_ball_runs, bye_runs, leg_bye_runs, total_runs, legal_ball, wicket,
-          wicket_type, dismissed_player_id, credited_bowler, state_before_json, created_at)
+          bat_runs, wide_runs, no_ball_runs, bye_runs, leg_bye_runs, total_runs, legal_ball, wicket, wicket_type,
+          dismissed_player_id, credited_bowler, state_before_json, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, newMatchId, inningsId, d.seq, d.overNo, d.ballInOver, d.strikerId, d.nonStrikerId, d.bowlerId,
-        d.batRuns, d.wideRuns, d.noBallRuns, d.byeRuns, d.legByeRuns, d.totalRuns, d.legalBall,
-        d.wicket, d.wicketType, d.dismissedPlayerId, d.creditedBowler, d.stateBeforeJson || '{}', d.createdAt);
+      `, newMatchId, mappedInningsId, d.seq, d.overNo, d.ballInOver, d.strikerId, d.nonStrikerId, d.bowlerId,
+        d.batRuns, d.wideRuns, d.noBallRuns, d.byeRuns, d.legByeRuns, d.totalRuns, d.legalBall, d.wicket,
+        d.wicketType, d.dismissedPlayerId, d.creditedBowler, d.stateBeforeJson, d.createdAt);
     }
+
     return { matchId: newMatchId, title: `${payload.match.teamAName} vs ${payload.match.teamBName}` };
   } catch (error) {
-    if (newMatchId) await db.runAsync('DELETE FROM matches WHERE id = ?', newMatchId).catch(() => undefined);
-    if (teamA?.created) await db.runAsync('DELETE FROM teams WHERE id = ?', teamA.id).catch(() => undefined);
-    if (teamB?.created) await db.runAsync('DELETE FROM teams WHERE id = ?', teamB.id).catch(() => undefined);
+    if (newMatchId != null) await db.runAsync('DELETE FROM matches WHERE id = ?', newMatchId).catch(() => undefined);
+    for (const team of [teamA, teamB]) {
+      if (team?.created) await db.runAsync('DELETE FROM teams WHERE id = ?', team.id).catch(() => undefined);
+    }
     throw error;
   }
 }
