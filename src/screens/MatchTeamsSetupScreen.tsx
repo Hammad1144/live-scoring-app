@@ -26,11 +26,13 @@ export function MatchTeamsSetupScreen({
   useEffect(() => { getTeams(db).then(setTeams); }, [db]);
 
   const selectTeamA = (teamId: number) => {
-    const battingFirstTeamId = draft.battingFirstTeamId === draft.teamAId ? teamId : draft.battingFirstTeamId;
+    const battingFirstTeamId = draft.teamAId != null && draft.battingFirstTeamId === draft.teamAId
+      ? teamId
+      : draft.battingFirstTeamId;
     onChange({
       ...draft,
       teamAId: teamId,
-      battingFirstTeamId: battingFirstTeamId === draft.teamBId ? battingFirstTeamId : battingFirstTeamId,
+      battingFirstTeamId,
       teamAPlayerIds: [],
       teamBPlayerIds: [],
       switches: [],
@@ -38,7 +40,9 @@ export function MatchTeamsSetupScreen({
   };
 
   const selectTeamB = (teamId: number) => {
-    const battingFirstTeamId = draft.battingFirstTeamId === draft.teamBId ? teamId : draft.battingFirstTeamId;
+    const battingFirstTeamId = draft.teamBId != null && draft.battingFirstTeamId === draft.teamBId
+      ? teamId
+      : draft.battingFirstTeamId;
     onChange({
       ...draft,
       teamBId: teamId,
@@ -49,19 +53,12 @@ export function MatchTeamsSetupScreen({
     });
   };
 
-  useEffect(() => {
-    if (draft.battingFirstTeamId != null && draft.battingFirstTeamId !== draft.teamAId && draft.battingFirstTeamId !== draft.teamBId) {
-      onChange({ ...draft, battingFirstTeamId: null });
-    }
-  }, [draft, onChange]);
-
-  const canContinue = Boolean(
-    draft.teamAId &&
-    draft.teamBId &&
-    draft.teamAId !== draft.teamBId &&
-    draft.battingFirstTeamId &&
-    [draft.teamAId, draft.teamBId].includes(draft.battingFirstTeamId),
-  );
+  const battingFirstIsValid = draft.battingFirstTeamId != null
+    && (draft.battingFirstTeamId === draft.teamAId || draft.battingFirstTeamId === draft.teamBId);
+  const canContinue = draft.teamAId != null
+    && draft.teamBId != null
+    && draft.teamAId !== draft.teamBId
+    && battingFirstIsValid;
 
   const teamAName = teams.find(team => team.id === draft.teamAId)?.name ?? 'Team A';
   const teamBName = teams.find(team => team.id === draft.teamBId)?.name ?? 'Team B';
@@ -127,7 +124,7 @@ export function MatchTeamsSetupScreen({
         <Card style={styles.summaryCard}>
           <Text style={styles.summaryLabel}>MATCH FORMAT</Text>
           <Text style={styles.summaryValue}>{teamAName} vs {teamBName}</Text>
-          <Text style={styles.summaryMeta}>{draft.overs} over{draft.overs === 1 ? '' : 's'} • {draft.battingFirstTeamId ? `${draft.battingFirstTeamId === draft.teamAId ? teamAName : teamBName} batting first` : 'Select batting first'}</Text>
+          <Text style={styles.summaryMeta}>{draft.overs} over{draft.overs === 1 ? '' : 's'} • {battingFirstIsValid ? `${draft.battingFirstTeamId === draft.teamAId ? teamAName : teamBName} batting first` : 'Select batting first'}</Text>
         </Card>
       </ScrollView>
 
