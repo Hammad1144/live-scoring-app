@@ -136,7 +136,6 @@ export function MatchAvailabilityScreen({
                 label={player.name}
                 selected={selectedA.has(player.id)}
                 onPress={() => toggle('A', player.id)}
-                disabled={!selectedA.has(player.id) && draft.teamAPlayerIds.length >= MAX_MATCH_PLAYERS}
               />
             ))}
           </View>
@@ -155,7 +154,6 @@ export function MatchAvailabilityScreen({
                 label={player.name}
                 selected={selectedB.has(player.id)}
                 onPress={() => toggle('B', player.id)}
-                disabled={!selectedB.has(player.id) && draft.teamBPlayerIds.length >= MAX_MATCH_PLAYERS}
               />
             ))}
           </View>
