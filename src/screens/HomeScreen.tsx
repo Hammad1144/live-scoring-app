@@ -194,6 +194,7 @@ export function HomeScreen({
             ]}
           >
             <Text style={styles.refreshIcon}>{syncing === 'refresh' ? '…' : '⟳'}</Text>
+            <Text style={styles.refreshText}>{syncing === 'refresh' ? 'Refreshing…' : 'Refresh'}</Text>
           </Pressable>
         </View>
       )}
@@ -235,9 +236,10 @@ const styles = StyleSheet.create({
   eyebrow: { color: colors.primary, fontSize: 12, fontWeight: '900', letterSpacing: 1.5 },
   rolePill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
   rolePillText: { color: colors.text, fontSize: 10, fontWeight: '800' },
-  refreshButton: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  refreshButton: { minHeight: 38, paddingHorizontal: 12, borderRadius: 19, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   refreshDisabled: { opacity: 0.45 },
-  refreshIcon: { color: colors.primary, fontSize: 20, lineHeight: 20, fontWeight: '900', textAlign: 'center', includeFontPadding: false },
+  refreshIcon: { color: colors.primary, fontSize: 18, lineHeight: 18, fontWeight: '900', textAlign: 'center', includeFontPadding: false },
+  refreshText: { color: colors.primary, fontSize: 12, fontWeight: '900' },
   heroTitle: { color: colors.text, fontSize: 28, lineHeight: 33, fontWeight: '900' },
   heroText: { color: colors.muted, lineHeight: 21, marginBottom: 4 },
   cloudCard: { gap: 12 },
