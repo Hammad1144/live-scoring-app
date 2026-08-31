@@ -7,9 +7,17 @@ import { Card, Chip, Empty, ScreenHeader } from '../components/UI';
 import { colors } from '../theme';
 import type { MatchSetupDraft } from './matchSetupDraft';
 
+const MAX_MATCH_PLAYERS = 11;
+
 function sameIds(a: number[], b: number[]) {
   if (a.length !== b.length) return false;
   return a.every((id, index) => id === b[index]);
+}
+
+function normalizeSelection(team: Team, current: number[]) {
+  const squadIds = team.players.map(player => player.id);
+  if (current.length === 0) return squadIds.slice(0, MAX_MATCH_PLAYERS);
+  return current.filter(id => squadIds.includes(id)).slice(0, MAX_MATCH_PLAYERS);
 }
 
 export function MatchAvailabilityScreen({
@@ -40,12 +48,8 @@ export function MatchAvailabilityScreen({
 
   useEffect(() => {
     if (!teamA || !teamB) return;
-    const allA = teamA.players.map(player => player.id);
-    const allB = teamB.players.map(player => player.id);
-    const validA = draft.teamAPlayerIds.filter(id => allA.includes(id));
-    const validB = draft.teamBPlayerIds.filter(id => allB.includes(id));
-    const nextA = validA.length ? validA : allA;
-    const nextB = validB.length ? validB : allB;
+    const nextA = normalizeSelection(teamA, draft.teamAPlayerIds);
+    const nextB = normalizeSelection(teamB, draft.teamBPlayerIds);
     if (!sameIds(nextA, draft.teamAPlayerIds) || !sameIds(nextB, draft.teamBPlayerIds)) {
       const active = new Set([...nextA, ...nextB]);
       onChange({
@@ -65,6 +69,10 @@ export function MatchAvailabilityScreen({
     const isSelected = current.includes(playerId);
     if (isSelected && current.length <= 2) {
       Alert.alert('Minimum team size', 'Keep at least 2 available players selected for each team.');
+      return;
+    }
+    if (!isSelected && current.length >= MAX_MATCH_PLAYERS) {
+      Alert.alert('Maximum match XI', 'A match can have at most 11 selected players per team. Deselect one player before selecting another.');
       return;
     }
     const next = isSelected ? current.filter(id => id !== playerId) : [...current, playerId];
@@ -95,30 +103,31 @@ export function MatchAvailabilityScreen({
     return (
       <View style={styles.root}>
         <ScrollView contentContainerStyle={styles.container}>
-          <ScreenHeader title="Available Players" subtitle="Step 3 of 3 • Match-day roster" onBack={onBack} />
+          <ScreenHeader title="Available Players" subtitle="Step 3 of 3 • Match-day XI" onBack={onBack} />
           <Empty text="Loading team players…" />
         </ScrollView>
       </View>
     );
   }
 
-  const canStart = draft.teamAPlayerIds.length >= 2 && draft.teamBPlayerIds.length >= 2;
+  const canStart = draft.teamAPlayerIds.length >= 2 && draft.teamAPlayerIds.length <= MAX_MATCH_PLAYERS
+    && draft.teamBPlayerIds.length >= 2 && draft.teamBPlayerIds.length <= MAX_MATCH_PLAYERS;
 
   return (
     <View style={styles.root}>
       <ScrollView contentContainerStyle={styles.container}>
-        <ScreenHeader title="Available Players" subtitle="Step 3 of 3 • Match-day roster" onBack={onBack} />
+        <ScreenHeader title="Available Players" subtitle="Step 3 of 3 • Match-day XI" onBack={onBack} />
 
         <Card style={styles.infoCard}>
-          <Text style={styles.infoTitle}>Select who is available today</Text>
-          <Text style={styles.helper}>All team players are selected by default. Deselect anyone who did not attend. Only selected players are added to this match roster and will appear in batting, bowling, fielding, match counts, season rankings and player profiles.</Text>
+          <Text style={styles.infoTitle}>Select today's playing squad</Text>
+          <Text style={styles.helper}>The first 11 players from each Team Bank squad are selected by default. Deselect anyone unavailable and select another squad member as needed. Only selected players are added to this match and counted as match participants.</Text>
         </Card>
 
         <Text style={styles.section}>{teamA.name}</Text>
         <Card style={styles.teamCard}>
           <View style={styles.teamHeader}>
-            <Text style={styles.teamCount}>{draft.teamAPlayerIds.length}/{teamA.players.length} available</Text>
-            <Text style={styles.hint}>Tap to deselect</Text>
+            <Text style={styles.teamCount}>{draft.teamAPlayerIds.length}/{MAX_MATCH_PLAYERS} selected</Text>
+            <Text style={styles.hint}>{teamA.players.length} in Team Bank</Text>
           </View>
           <View style={styles.chips}>
             {teamA.players.map(player => (
@@ -127,6 +136,7 @@ export function MatchAvailabilityScreen({
                 label={player.name}
                 selected={selectedA.has(player.id)}
                 onPress={() => toggle('A', player.id)}
+                disabled={!selectedA.has(player.id) && draft.teamAPlayerIds.length >= MAX_MATCH_PLAYERS}
               />
             ))}
           </View>
@@ -135,8 +145,8 @@ export function MatchAvailabilityScreen({
         <Text style={styles.section}>{teamB.name}</Text>
         <Card style={styles.teamCard}>
           <View style={styles.teamHeader}>
-            <Text style={styles.teamCount}>{draft.teamBPlayerIds.length}/{teamB.players.length} available</Text>
-            <Text style={styles.hint}>Tap to deselect</Text>
+            <Text style={styles.teamCount}>{draft.teamBPlayerIds.length}/{MAX_MATCH_PLAYERS} selected</Text>
+            <Text style={styles.hint}>{teamB.players.length} in Team Bank</Text>
           </View>
           <View style={styles.chips}>
             {teamB.players.map(player => (
@@ -145,6 +155,7 @@ export function MatchAvailabilityScreen({
                 label={player.name}
                 selected={selectedB.has(player.id)}
                 onPress={() => toggle('B', player.id)}
+                disabled={!selectedB.has(player.id) && draft.teamBPlayerIds.length >= MAX_MATCH_PLAYERS}
               />
             ))}
           </View>
