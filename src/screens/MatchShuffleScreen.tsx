@@ -86,8 +86,8 @@ export function MatchShuffleScreen({
           <Text style={styles.infoTitle}>Lend available players for this match</Text>
           <Text style={styles.helper}>Shuffle only changes the match roster. Team Bank membership, player identity, career statistics and future matches stay unchanged. Each side must remain between 2 and 11 players.</Text>
           <View style={styles.countRow}>
-            <Text style={styles.countText}>{teamA.name}: {effectiveA}</Text>
-            <Text style={styles.countText}>{teamB.name}: {effectiveB}</Text>
+            <Text style={styles.countText}>{teamA.name}: {effectiveA}/11</Text>
+            <Text style={styles.countText}>{teamB.name}: {effectiveB}/11</Text>
           </View>
         </Card>
 
