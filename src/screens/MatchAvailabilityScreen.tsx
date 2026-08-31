@@ -120,7 +120,7 @@ export function MatchAvailabilityScreen({
 
         <Card style={styles.infoCard}>
           <Text style={styles.infoTitle}>Select today's playing squad</Text>
-          <Text style={styles.helper}>The first 11 players from each Team Bank squad are selected by default. Deselect anyone unavailable and select another squad member as needed. Only selected players are added to this match and counted as match participants.</Text>
+          <Text style={styles.helper}>The first 11 players from each Team Bank squad are selected by default. Deselect anyone unavailable, then select another squad member as needed. Only selected players are added to this match and counted as match participants.</Text>
         </Card>
 
         <Text style={styles.section}>{teamA.name}</Text>
