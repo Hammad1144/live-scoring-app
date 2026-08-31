@@ -124,7 +124,7 @@ export function SeasonDetailScreen({
 
               {unassignedCount > 0 ? (
                 <Pressable onPress={() => onOpenRound(null)}>
-                  <Card style={[styles.roundCard, styles.unassignedCard]}>
+                  <Card style={{ ...styles.roundCard, ...styles.unassignedCard }}>
                     <View style={styles.roundBadge}><Text style={styles.roundBadgeText}>!</Text></View>
                     <View style={styles.roundMain}>
                       <Text style={styles.roundName}>Unassigned Matches</Text>
