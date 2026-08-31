@@ -179,6 +179,38 @@ export function ScoringScreenV16({
     }
   };
 
+  const rotateStrike = () => {
+    if (!live || !live.innings.striker_id || !live.innings.non_striker_id) {
+      Alert.alert('Rotate strike', 'Both batting ends must be occupied before strike can be rotated.');
+      return;
+    }
+    const strikerId = Number(live.innings.striker_id);
+    const nonStrikerId = Number(live.innings.non_striker_id);
+    Alert.alert(
+      'Rotate strike?',
+      `${live.nonStrikerName ?? 'Non-striker'} will become striker and ${live.strikerName ?? 'Striker'} will move to the non-striker end. No ball, run, or player statistic will be recorded.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Rotate',
+          onPress: async () => {
+            try {
+              await db.runAsync(
+                'UPDATE innings SET striker_id=?, non_striker_id=? WHERE id=?',
+                nonStrikerId,
+                strikerId,
+                live.innings.id,
+              );
+              await load();
+            } catch (e) {
+              Alert.alert('Unable to rotate strike', e instanceof Error ? e.message : String(e));
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const wicketTypes = useMemo<WicketType[]>(() => {
     if (wicketDelivery === 'noBall') return ['Run Out'];
     if (wicketDelivery === 'wide') return ['Run Out', 'Stumped'];
@@ -270,6 +302,8 @@ export function ScoringScreenV16({
   const sheetBottomPadding = Math.max(insets.bottom, 12) + 18;
   const wicketNeedsFielder = wicketType === 'Caught' || wicketType === 'Run Out' || wicketType === 'Stumped';
   const fielderLabel = wicketType === 'Caught' ? 'Caught by' : wicketType === 'Run Out' ? 'Run out by' : 'Stumped by';
+  const canDeclare = Boolean(innings.striker_id || innings.non_striker_id);
+  const canRotate = Boolean(innings.striker_id && innings.non_striker_id);
 
   return (
     <View style={styles.root}>
@@ -397,10 +431,27 @@ export function ScoringScreenV16({
             >
               <Text style={styles.wicketText}>WICKET</Text>
             </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.actionButton, pressed && styles.pressed]}
+              onPress={undo}
+            >
+              <Text style={styles.actionText}>↶ Undo Ball</Text>
+            </Pressable>
+            <Pressable
+              disabled={!canDeclare}
+              style={({ pressed }) => [styles.actionButton, !canDeclare && styles.disabledAction, pressed && canDeclare && styles.pressed]}
+              onPress={() => setDeclareOpen(true)}
+            >
+              <Text style={styles.actionText}>Declare Batter</Text>
+            </Pressable>
+            <Pressable
+              disabled={!canRotate}
+              style={({ pressed }) => [styles.actionButton, !canRotate && styles.disabledAction, pressed && canRotate && styles.pressed]}
+              onPress={rotateStrike}
+            >
+              <Text style={styles.actionText}>⇄ Rotate Strike</Text>
+            </Pressable>
           </View>
-
-          <SecondaryButton label="↶ Undo Last Ball" onPress={undo} />
-          <SecondaryButton label="Declare Batter" onPress={() => setDeclareOpen(true)} disabled={!innings.striker_id && !innings.non_striker_id} />
         </View>
       </ScrollView>
 
@@ -486,7 +537,12 @@ export function ScoringScreenV16({
 
       <Modal transparent visible={wicketOpen} animationType="slide" onRequestClose={() => setWicketOpen(false)}>
         <View style={styles.modalShade}>
-          <ScrollView contentContainerStyle={styles.modalWrap} keyboardShouldPersistTaps="handled">
+          <ScrollView
+            style={styles.wicketSheetScroll}
+            contentContainerStyle={styles.modalWrap}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
             <View style={[styles.modalCard, { paddingBottom: sheetBottomPadding }]}>
               <Text style={styles.modalTitle}>Record Wicket</Text>
               <Text style={styles.modalHint}>Delivery</Text>
@@ -513,9 +569,9 @@ export function ScoringScreenV16({
               {wicketNeedsFielder ? (
                 <>
                   <Text style={styles.modalHint}>{fielderLabel}</Text>
-                  <ScrollView style={styles.fielderScroll} contentContainerStyle={styles.chips} keyboardShouldPersistTaps="handled">
+                  <View style={styles.fielderList}>
                     {fielders.map(p => <Chip key={p.id} label={p.name} selected={fielderId === p.id} onPress={() => setFielderId(p.id)} />)}
-                  </ScrollView>
+                  </View>
                 </>
               ) : null}
               <PrimaryButton label="Record Wicket" onPress={submitWicket} danger disabled={wicketNeedsFielder && !fielderId} />
@@ -621,19 +677,21 @@ const styles = StyleSheet.create({
   deadRunHint: { color: colors.primary, fontSize: 9, fontWeight: '800', marginTop: 1 },
   deadRunHelp: { color: colors.primary, fontSize: 11, fontWeight: '700' },
   actionGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 10 },
-  actionButton: { width: '48.5%', height: 52, borderRadius: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  wicketAction: { width: '100%', borderColor: colors.danger, backgroundColor: '#3a1718' },
-  actionText: { color: colors.text, fontWeight: '800' },
+  actionButton: { width: '48.5%', height: 52, borderRadius: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
+  wicketAction: { borderColor: colors.danger, backgroundColor: '#3a1718' },
+  actionText: { color: colors.text, fontWeight: '800', textAlign: 'center' },
   wicketText: { color: '#ff9b9b', fontWeight: '900', letterSpacing: 1 },
+  disabledAction: { opacity: 0.4 },
   pressed: { opacity: 0.72 },
   modalShade: { flex: 1, backgroundColor: 'rgba(0,0,0,0.68)', justifyContent: 'flex-end', alignItems: 'center' },
-  modalWrap: { flexGrow: 1, justifyContent: 'flex-end', alignItems: 'center', width: '100%' },
+  wicketSheetScroll: { width: '100%' },
+  modalWrap: { flexGrow: 1, justifyContent: 'flex-end', alignItems: 'center', width: '100%', maxWidth: '100%' },
   modalCard: { width: '100%', maxWidth: 620, backgroundColor: colors.surface, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, gap: 14, borderWidth: 1, borderColor: colors.border },
   modalTitle: { color: colors.text, fontSize: 23, fontWeight: '900' },
   modalHint: { color: colors.muted, fontSize: 13, fontWeight: '700' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   pickerScroll: { maxHeight: 240 },
-  fielderScroll: { maxHeight: 160 },
+  fielderList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, width: '100%', alignSelf: 'stretch' },
   guestBox: { gap: 10, borderTopWidth: 1, borderColor: colors.border, paddingTop: 12 },
   guestHint: { color: colors.muted, fontSize: 10, lineHeight: 15 },
   declareOption: { minHeight: 64, borderRadius: 15, borderWidth: 1, borderColor: colors.warning, backgroundColor: colors.surface2, paddingHorizontal: 15, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', gap: 12 },

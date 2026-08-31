@@ -244,6 +244,109 @@ export async function recordDeliveryV16(db: SQLiteDatabase, inningsId: number, i
   return closeInningsBecauseNoBatter(db, innings);
 }
 
+type ScorecardDeliveryOrderRow = {
+  seq: number;
+  strikerId: number | null;
+  nonStrikerId: number | null;
+  dismissedPlayerId: number | null;
+  bowlerId: number | null;
+  createdAt: string;
+};
+
+type ScorecardRetirementOrderRow = {
+  playerId: number;
+  createdAt: string;
+};
+
+async function orderScorecardByActualSequence(
+  db: SQLiteDatabase,
+  inningsId: number,
+  batters: BatterLine[],
+  bowlers: MatchDetail['innings'][number]['bowlers'],
+) {
+  const [deliveries, retirements] = await Promise.all([
+    db.getAllAsync<ScorecardDeliveryOrderRow>(`
+      SELECT seq,
+        striker_id AS strikerId,
+        non_striker_id AS nonStrikerId,
+        dismissed_player_id AS dismissedPlayerId,
+        bowler_id AS bowlerId,
+        created_at AS createdAt
+      FROM deliveries
+      WHERE innings_id=?
+      ORDER BY seq
+    `, inningsId),
+    db.getAllAsync<ScorecardRetirementOrderRow>(`
+      SELECT player_id AS playerId, created_at AS createdAt
+      FROM innings_retirements
+      WHERE innings_id=?
+      ORDER BY id
+    `, inningsId),
+  ]);
+
+  const batterOrder = new Map<number, number>();
+  const bowlerOrder = new Map<number, number>();
+  let nextBatterOrder = 0;
+  let nextBowlerOrder = 0;
+
+  const markBatter = (playerId: number | null) => {
+    if (playerId == null || batterOrder.has(playerId)) return;
+    batterOrder.set(playerId, nextBatterOrder++);
+  };
+  const markBowler = (playerId: number | null) => {
+    if (playerId == null || bowlerOrder.has(playerId)) return;
+    bowlerOrder.set(playerId, nextBowlerOrder++);
+  };
+
+  const events: Array<
+    | { kind: 'delivery'; at: string; seq: number; row: ScorecardDeliveryOrderRow }
+    | { kind: 'retirement'; at: string; seq: number; row: ScorecardRetirementOrderRow }
+  > = [
+    ...deliveries.map(row => ({ kind: 'delivery' as const, at: row.createdAt, seq: row.seq, row })),
+    ...retirements.map((row, index) => ({ kind: 'retirement' as const, at: row.createdAt, seq: index, row })),
+  ];
+
+  events.sort((a, b) => {
+    const timeCompare = a.at.localeCompare(b.at);
+    if (timeCompare !== 0) return timeCompare;
+    if (a.kind === b.kind) return a.seq - b.seq;
+    return a.kind === 'retirement' ? -1 : 1;
+  });
+
+  for (const event of events) {
+    if (event.kind === 'retirement') {
+      markBatter(event.row.playerId);
+      continue;
+    }
+    // The striker is batting first on the first recorded delivery, followed by the
+    // non-striker. New batters are added when they first appear at either crease.
+    markBatter(event.row.strikerId);
+    markBatter(event.row.nonStrikerId);
+    markBatter(event.row.dismissedPlayerId);
+    markBowler(event.row.bowlerId);
+  }
+
+  const currentBatterIndex = new Map(batters.map((batter, index) => [batter.playerId, index]));
+  batters.sort((a, b) => {
+    const aOrder = batterOrder.get(a.playerId);
+    const bOrder = batterOrder.get(b.playerId);
+    if (aOrder != null && bOrder != null) return aOrder - bOrder;
+    if (aOrder != null) return -1;
+    if (bOrder != null) return 1;
+    return (currentBatterIndex.get(a.playerId) ?? 0) - (currentBatterIndex.get(b.playerId) ?? 0);
+  });
+
+  const currentBowlerIndex = new Map(bowlers.map((bowler, index) => [bowler.playerId, index]));
+  bowlers.sort((a, b) => {
+    const aOrder = bowlerOrder.get(a.playerId);
+    const bOrder = bowlerOrder.get(b.playerId);
+    if (aOrder != null && bOrder != null) return aOrder - bOrder;
+    if (aOrder != null) return -1;
+    if (bOrder != null) return 1;
+    return (currentBowlerIndex.get(a.playerId) ?? 0) - (currentBowlerIndex.get(b.playerId) ?? 0);
+  });
+}
+
 export async function getMatchDetailV16(db: SQLiteDatabase, matchId: number): Promise<MatchDetail> {
   const detail = await getMatchDetailV13(db, matchId);
   for (const innings of detail.innings) {
@@ -280,6 +383,8 @@ export async function getMatchDetailV16(db: SQLiteDatabase, matchId: number): Pr
         batter.dismissal = 'declared';
       }
     }
+
+    await orderScorecardByActualSequence(db, innings.inningsId, innings.batters, innings.bowlers);
   }
   return detail;
 }
