@@ -46,8 +46,8 @@ jobs:
           APP_NAME=$(node -p "require('./app.json').expo.name")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "app_name=$APP_NAME" >> "$GITHUB_OUTPUT"
-          echo "release_tag=v${VERSION}-build.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
-          echo "apk_name=Cricket-Zone-App-v${VERSION}-build.${GITHUB_RUN_NUMBER}.apk" >> "$GITHUB_OUTPUT"
+          echo "release_tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "apk_name=${APP_NAME} v${VERSION}.apk" >> "$GITHUB_OUTPUT"
 
       - name: Make Gradle wrapper executable
         run: chmod +x android/gradlew
@@ -62,7 +62,7 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Cricket-Zone-App-v${{ steps.app.outputs.version }}-build-${{ github.run_number }}
+          name: ${{ steps.app.outputs.app_name }} v${{ steps.app.outputs.version }}
           path: ${{ steps.app.outputs.apk_name }}
           if-no-files-found: error
           retention-days: 14
@@ -76,7 +76,17 @@ jobs:
           APK_NAME: ${{ steps.app.outputs.apk_name }}
         shell: bash
         run: |
-          gh release create "$RELEASE_TAG" "$APK_NAME" \
-            --target "$GITHUB_SHA" \
-            --title "$APP_NAME v$APP_VERSION • Build $GITHUB_RUN_NUMBER" \
-            --notes "Android APK built automatically from main.\n\nVersion: $APP_VERSION\nBuild: $GITHUB_RUN_NUMBER\nCommit: $GITHUB_SHA"
+          RELEASE_TITLE="$APP_NAME v$APP_VERSION"
+          RELEASE_NOTES=$(printf 'Android APK built automatically from main.\n\nVersion: %s\nCommit: %s' "$APP_VERSION" "$GITHUB_SHA")
+
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" \
+              --title "$RELEASE_TITLE" \
+              --notes "$RELEASE_NOTES"
+            gh release upload "$RELEASE_TAG" "$APK_NAME" --clobber
+          else
+            gh release create "$RELEASE_TAG" "$APK_NAME" \
+              --target "$GITHUB_SHA" \
+              --title "$RELEASE_TITLE" \
+              --notes "$RELEASE_NOTES"
+          fi
