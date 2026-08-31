@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { StyleSheet } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { BackHandler, StyleSheet } from 'react-native';
 import { SafeAreaProvider, SafeAreaView, initialWindowMetrics } from 'react-native-safe-area-context';
 import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
@@ -76,6 +76,64 @@ function AppContent() {
   const [playerName, setPlayerName] = useState('');
   const [playerSeasonId, setPlayerSeasonId] = useState<number | null>(null);
   const [playerReturn, setPlayerReturn] = useState<Screen>('leaderboards');
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      // Preserve Android's normal app-exit behavior only at the top level.
+      if (role == null || screen === 'home') return false;
+
+      switch (screen) {
+        case 'players':
+        case 'playerDirectory':
+        case 'history':
+        case 'leaderboards':
+          setScreen('home');
+          break;
+        case 'teams':
+          setScreen(teamReturn);
+          break;
+        case 'teamEditor':
+          setScreen('teams');
+          break;
+        case 'matchSetup':
+          setScreen('home');
+          break;
+        case 'matchSetupTeams':
+          setScreen('matchSetup');
+          break;
+        case 'matchSetupPlayers':
+          setScreen('matchSetupTeams');
+          break;
+        case 'matchSetupShuffle':
+          setScreen('matchSetupPlayers');
+          break;
+        case 'inningsSetup':
+        case 'scoring':
+        case 'matchDetail':
+          setScreen(matchReturn);
+          break;
+        case 'seasons':
+          setScreen(seasonReturn);
+          break;
+        case 'seasonDetail':
+          setScreen('seasons');
+          break;
+        case 'seasonRoundDetail':
+          setScreen('seasonDetail');
+          break;
+        case 'playerProfile':
+          setScreen(playerReturn);
+          break;
+        default:
+          return false;
+      }
+
+      // The app handled this back press; do not close the activity.
+      return true;
+    });
+
+    return () => subscription.remove();
+  }, [role, screen, teamReturn, matchReturn, seasonReturn, playerReturn]);
 
   const login = (nextRole: AccessRole) => {
     setRole(nextRole);
