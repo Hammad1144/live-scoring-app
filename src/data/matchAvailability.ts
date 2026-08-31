@@ -124,6 +124,7 @@ export async function createMatchWithAvailability(
     );
     matchId = Number(result.lastInsertRowId);
 
+    // match_players is the authoritative match-day XI. Permanent Team Bank membership stays in team_players.
     const insertRoster = async (teamId: number, players: SquadPlayerRow[]) => {
       for (let index = 0; index < players.length; index++) {
         const player = players[index]!;
