@@ -3,7 +3,7 @@ name: Deploy Viewer PWA
 on:
   push:
     branches:
-      - feature/viewer-pwa-github-pages
+      - main
   workflow_dispatch:
 
 permissions:
