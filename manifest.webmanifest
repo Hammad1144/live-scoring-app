@@ -1,0 +1,19 @@
+{
+  "name": "Cricket Zone Viewer",
+  "short_name": "Cricket Zone",
+  "description": "Viewer access for Cricket Zone seasons, matches, players and leaderboards.",
+  "start_url": "./#/home",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#06110b",
+  "theme_color": "#07130d",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "./icon.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
