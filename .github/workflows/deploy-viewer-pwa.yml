@@ -1,0 +1,67 @@
+name: Deploy Viewer PWA
+
+on:
+  push:
+    branches:
+      - feature/viewer-pwa-github-pages
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: viewer-pwa-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build Viewer PWA
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.5
+          cache: npm
+
+      - name: Install project dependencies
+        run: npm ci
+
+      - name: Install Expo web runtime
+        run: npx expo install react-dom react-native-web @expo/metro-runtime -- --no-save
+
+      - name: TypeScript check
+        run: npm run typecheck
+
+      - name: Export web app
+        run: npx expo export -p web
+
+      - name: Disable Jekyll processing
+        run: touch dist/.nojekyll
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    name: Deploy Viewer PWA
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
