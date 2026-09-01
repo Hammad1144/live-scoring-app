@@ -57,7 +57,7 @@ jobs:
   deploy:
     name: Deploy Viewer PWA
     environment:
-      name: github-pages
+      name: viewer-pwa-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     needs: build
