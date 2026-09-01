@@ -40,6 +40,16 @@ export default function App() {
       document.head.appendChild(fontLink);
     }
 
+    // Use the supplied Cricket Zone Karachi artwork for browser/PWA branding.
+    let favicon = document.querySelector('link[rel="icon"]');
+    if (!favicon) {
+      favicon = document.createElement('link');
+      favicon.rel = 'icon';
+      document.head.appendChild(favicon);
+    }
+    favicon.href = '/live-scoring-app/icon.svg';
+    favicon.type = 'image/svg+xml';
+
     // The app provides its own scroll containers. Hide browser-rendered scrollbar
     // chrome so scaling never produces a second/right-side rail while preserving
     // mouse-wheel, trackpad and touch scrolling. Apply a single web-only typography
@@ -73,6 +83,34 @@ export default function App() {
       `;
       document.head.appendChild(style);
     }
+
+    // ViewerWebApp still owns the structural badge so Android/shared code remains
+    // untouched. Replace only the rendered desktop "CZ" mark with the supplied logo.
+    const applyWebBrandLogo = () => {
+      const elements = Array.from(document.querySelectorAll('*')) as any[];
+      for (const element of elements) {
+        if (element?.textContent?.trim() !== 'CZ') continue;
+        const parent = element.parentElement;
+        if (!parent) continue;
+        const rect = parent.getBoundingClientRect?.();
+        if (!rect || rect.width < 28 || rect.width > 100 || rect.height < 28 || rect.height > 100) continue;
+
+        parent.style.backgroundImage = "url('/live-scoring-app/icon.svg')";
+        parent.style.backgroundSize = 'cover';
+        parent.style.backgroundPosition = 'center';
+        parent.style.backgroundRepeat = 'no-repeat';
+        parent.style.backgroundColor = 'transparent';
+        parent.style.overflow = 'hidden';
+        element.style.opacity = '0';
+      }
+    };
+
+    applyWebBrandLogo();
+    const Observer = globalAny.MutationObserver;
+    const observer = Observer ? new Observer(() => applyWebBrandLogo()) : null;
+    observer?.observe(document.body, { childList: true, subtree: true });
+
+    return () => observer?.disconnect();
   }, []);
 
   if (width < 620) return <ViewerMobileApp />;
