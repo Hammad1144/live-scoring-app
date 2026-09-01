@@ -439,12 +439,38 @@ export function inningsScorecard(snapshot: ViewerSnapshot, inningsId: number): {
     .sort((a, b) => numberValue(a, 'seq') - numberValue(b, 'seq'));
 
   const battingRows = table(snapshot, 'match_players')
-    .filter(row => numberValue(row, 'match_id') === matchId && numberValue(row, 'team_id') === battingTeamId)
-    .sort((a, b) => numberValue(a, 'batting_order') - numberValue(b, 'batting_order'));
+    .filter(row => numberValue(row, 'match_id') === matchId && numberValue(row, 'team_id') === battingTeamId);
   const bowlingRows = table(snapshot, 'match_players')
-    .filter(row => numberValue(row, 'match_id') === matchId && numberValue(row, 'team_id') === bowlingTeamId)
-    .sort((a, b) => numberValue(a, 'batting_order') - numberValue(b, 'batting_order'));
+    .filter(row => numberValue(row, 'match_id') === matchId && numberValue(row, 'team_id') === bowlingTeamId);
 
+  // Match scorecards must follow the order players actually participated in the
+  // innings, not the roster/Team Bank order. This mirrors the native Android
+  // getMatchDetailV16 behavior: striker first, then non-striker, then each new
+  // batter when they first appears; bowlers are ordered by first delivery bowled.
+  const batterOrder = new Map<number, number>();
+  const bowlerOrder = new Map<number, number>();
+  const participatedBatters = new Set<number>();
+  let nextBatterOrder = 0;
+  let nextBowlerOrder = 0;
+
+  const markBatter = (playerId: number | null) => {
+    if (playerId == null || playerId <= 0) return;
+    participatedBatters.add(playerId);
+    if (!batterOrder.has(playerId)) batterOrder.set(playerId, nextBatterOrder++);
+  };
+  const markBowler = (playerId: number | null) => {
+    if (playerId == null || playerId <= 0 || bowlerOrder.has(playerId)) return;
+    bowlerOrder.set(playerId, nextBowlerOrder++);
+  };
+
+  for (const delivery of deliveries) {
+    markBatter(nullableNumber(delivery, 'striker_id'));
+    markBatter(nullableNumber(delivery, 'non_striker_id'));
+    markBatter(nullableNumber(delivery, 'dismissed_player_id'));
+    markBowler(nullableNumber(delivery, 'bowler_id'));
+  }
+
+  const rosterBattingIndex = new Map(battingRows.map((row, index) => [numberValue(row, 'player_id'), index]));
   const batters: BatterScore[] = battingRows.map(row => {
     const playerId = numberValue(row, 'player_id');
     const faced = deliveries.filter(delivery => numberValue(delivery, 'striker_id') === playerId);
@@ -457,8 +483,18 @@ export function inningsScorecard(snapshot: ViewerSnapshot, inningsId: number): {
       sixes: faced.filter(delivery => numberValue(delivery, 'bat_runs') === 6).length,
       dismissed: deliveries.some(delivery => numberValue(delivery, 'wicket') === 1 && nullableNumber(delivery, 'dismissed_player_id') === playerId),
     };
-  }).filter(row => row.runs > 0 || row.balls > 0 || row.dismissed);
+  })
+    .filter(row => participatedBatters.has(row.playerId))
+    .sort((a, b) => {
+      const aOrder = batterOrder.get(a.playerId);
+      const bOrder = batterOrder.get(b.playerId);
+      if (aOrder != null && bOrder != null) return aOrder - bOrder;
+      if (aOrder != null) return -1;
+      if (bOrder != null) return 1;
+      return (rosterBattingIndex.get(a.playerId) ?? 0) - (rosterBattingIndex.get(b.playerId) ?? 0);
+    });
 
+  const rosterBowlingIndex = new Map(bowlingRows.map((row, index) => [numberValue(row, 'player_id'), index]));
   const bowlers: BowlerScore[] = bowlingRows.map(row => {
     const playerId = numberValue(row, 'player_id');
     const bowled = deliveries.filter(delivery => numberValue(delivery, 'bowler_id') === playerId);
@@ -469,7 +505,16 @@ export function inningsScorecard(snapshot: ViewerSnapshot, inningsId: number): {
       runs: bowled.reduce((sum, delivery) => sum + numberValue(delivery, 'bat_runs') + numberValue(delivery, 'wide_runs') + numberValue(delivery, 'no_ball_runs'), 0),
       wickets: bowled.reduce((sum, delivery) => sum + numberValue(delivery, 'credited_bowler'), 0),
     };
-  }).filter(row => row.legalBalls > 0 || row.runs > 0 || row.wickets > 0);
+  })
+    .filter(row => bowlerOrder.has(row.playerId))
+    .sort((a, b) => {
+      const aOrder = bowlerOrder.get(a.playerId);
+      const bOrder = bowlerOrder.get(b.playerId);
+      if (aOrder != null && bOrder != null) return aOrder - bOrder;
+      if (aOrder != null) return -1;
+      if (bOrder != null) return 1;
+      return (rosterBowlingIndex.get(a.playerId) ?? 0) - (rosterBowlingIndex.get(b.playerId) ?? 0);
+    });
 
   return { batters, bowlers };
 }
