@@ -7,6 +7,11 @@
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
+    "platforms": [
+      "android",
+      "ios",
+      "web"
+    ],
     "android": {
       "package": "com.localcricket.scorer",
       "versionCode": 10,
@@ -16,9 +21,19 @@
       "bundleIdentifier": "com.localcricket.scorer",
       "supportsTablet": true
     },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/icon.png",
+      "name": "Cricket Zone Viewer",
+      "shortName": "Cricket Zone"
+    },
     "plugins": [
       "expo-sqlite"
     ],
+    "experiments": {
+      "baseUrl": "/live-scoring-app"
+    },
     "extra": {
       "eas": {
         "projectId": "bbc9067a-4337-4de1-bde8-7365fdd9c32e"
