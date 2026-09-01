@@ -30,7 +30,7 @@ function assertViewerSnapshot(payload: unknown): asserts payload is ViewerSnapsh
 }
 
 function normalizeViewerSnapshot(payload: ViewerSnapshot): ViewerSnapshot {
-  const matches = payload.tables.matches.map(match => {
+  const matches = (payload.tables.matches ?? []).map(match => {
     const status = typeof match.status === 'string' ? match.status.trim().toUpperCase() : '';
 
     // Android stores finished matches as COMPLETE. The original desktop viewer
