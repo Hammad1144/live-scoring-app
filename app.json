@@ -24,9 +24,9 @@
     "web": {
       "bundler": "metro",
       "output": "single",
-      "favicon": "./assets/icon.png",
-      "name": "Cricket Zone Viewer",
-      "shortName": "Cricket Zone"
+      "favicon": "./assets/pwa-icon.svg",
+      "name": "Cricket Zone App",
+      "shortName": "Cricket Zone App"
     },
     "plugins": [
       "expo-sqlite"
