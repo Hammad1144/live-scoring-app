@@ -19,7 +19,8 @@ jobs:
 
       - name: Generate 512px PNG icon
         run: |
-          base64 -d .github/icon-source.b64 > /tmp/cricket-zone-icon.jpg
+          cat .github/icon-part-0.b64 .github/icon-part-1.b64 .github/icon-part-2.b64 > /tmp/icon.b64
+          base64 -d /tmp/icon.b64 > /tmp/cricket-zone-icon.jpg
           convert /tmp/cricket-zone-icon.jpg -resize 512x512 assets/icon.png
           file assets/icon.png
           identify assets/icon.png
@@ -27,6 +28,9 @@ jobs:
       - name: Clean temporary icon files
         run: |
           rm -f .github/icon-source.b64
+          rm -f .github/icon-part-0.b64
+          rm -f .github/icon-part-1.b64
+          rm -f .github/icon-part-2.b64
           rm -f assets/pwa-icon.svg
           rm -f .github/workflows/one-time-hires-icon.yml
 
@@ -34,6 +38,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add assets/icon.png .github/icon-source.b64 assets/pwa-icon.svg .github/workflows/one-time-hires-icon.yml
+          git add -A
           git commit -m "Replace app icon with high-resolution Cricket Zone logo"
           git push origin main
