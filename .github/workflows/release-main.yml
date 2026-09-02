@@ -62,8 +62,8 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-  migrate-release-structure:
-    name: Migrate grouped APK release
+  sync-release-title:
+    name: Sync minor release title
     runs-on: ubuntu-latest
 
     steps:
@@ -72,7 +72,7 @@ jobs:
         with:
           ref: ${{ github.sha }}
 
-      - name: Convert minor release into patch releases
+      - name: Keep vMAJOR.MINOR release title on latest patch
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -85,43 +85,36 @@ jobs:
           SERIES_TAG="v${SERIES}"
 
           if ! gh release view "$SERIES_TAG" >/dev/null 2>&1; then
-            echo "No grouped $SERIES_TAG release exists. Nothing to migrate."
+            echo "No $SERIES_TAG release exists yet."
             exit 0
           fi
 
-          SERIES_TARGET=$(gh release view "$SERIES_TAG" --json targetCommitish --jq '.targetCommitish')
-          mkdir -p migration-assets
-
+          MAX_PATCH=-1
           while IFS= read -r ASSET; do
             if [[ "$ASSET" =~ ^Cricket\.Zone\.App\.v${MAJOR}\.${MINOR}\.([0-9]+)\.apk$ ]]; then
               PATCH="${BASH_REMATCH[1]}"
-              PATCH_VERSION="${MAJOR}.${MINOR}.${PATCH}"
-              PATCH_TAG="v${PATCH_VERSION}"
-
-              if gh release view "$PATCH_TAG" >/dev/null 2>&1; then
-                echo "$PATCH_TAG already exists; keeping it."
-                continue
+              if (( PATCH > MAX_PATCH )); then
+                MAX_PATCH=$PATCH
               fi
-
-              gh release download "$SERIES_TAG" \
-                --pattern "$ASSET" \
-                --dir migration-assets
-
-              gh release create "$PATCH_TAG" "migration-assets/$ASSET" \
-                --target "$SERIES_TARGET" \
-                --title "$APP_NAME v$PATCH_VERSION" \
-                --notes "$(printf 'Android APK built automatically from main.\n\nVersion: %s\nCommit: %s' "$PATCH_VERSION" "$SERIES_TARGET")"
             fi
           done < <(gh release view "$SERIES_TAG" --json assets --jq '.assets[].name')
 
-          # A GitHub release can only belong to one tag. Remove the grouped
-          # release, but intentionally keep vMAJOR.MINOR as the floating series tag.
-          gh release delete "$SERIES_TAG" --yes
+          if (( MAX_PATCH < 0 )); then
+            echo "No ${SERIES}.x APK asset found on $SERIES_TAG."
+            exit 0
+          fi
+
+          LATEST_VERSION="${MAJOR}.${MINOR}.${MAX_PATCH}"
+          RELEASE_TITLE="$APP_NAME v$LATEST_VERSION"
+          RELEASE_NOTES=$(printf 'Android builds for the %s.x release line.\n\nLatest APK: %s v%s\n\nAll %s.x APK builds are available as assets on this release.' "$SERIES" "$APP_NAME" "$LATEST_VERSION" "$SERIES")
+
+          gh release edit "$SERIES_TAG" \
+            --title "$RELEASE_TITLE" \
+            --notes "$RELEASE_NOTES"
 
   build-apk:
     name: Build and publish Android APK
-    needs: migrate-release-structure
-    if: ${{ needs.migrate-release-structure.result == 'success' && !contains(github.event.head_commit.message, '[release-migration-only]') }}
+    if: ${{ !contains(github.event.head_commit.message, '[release-migration-only]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -170,6 +163,7 @@ jobs:
           MAX_PATCH=-1
           FOUND_EXISTING=false
 
+          # Read older patch-level releases such as v1.7.1 and v1.7.2.
           while IFS= read -r TAG; do
             if [[ "$TAG" =~ ^v${MAJOR}\.${MINOR}\.([0-9]+)$ ]]; then
               PATCH="${BASH_REMATCH[1]}"
@@ -179,6 +173,19 @@ jobs:
               fi
             fi
           done < <(gh release list --limit 200 --json tagName --jq '.[].tagName')
+
+          # Read APKs already grouped under the minor-series release, e.g. v1.7.
+          if gh release view "$SERIES_TAG" >/dev/null 2>&1; then
+            while IFS= read -r ASSET; do
+              if [[ "$ASSET" =~ ^Cricket\.Zone\.App\.v${MAJOR}\.${MINOR}\.([0-9]+)\.apk$ ]]; then
+                PATCH="${BASH_REMATCH[1]}"
+                FOUND_EXISTING=true
+                if (( PATCH > MAX_PATCH )); then
+                  MAX_PATCH=$PATCH
+                fi
+              fi
+            done < <(gh release view "$SERIES_TAG" --json assets --jq '.assets[].name')
+          fi
 
           if [[ "$FOUND_EXISTING" == "true" ]]; then
             if (( CONFIG_PATCH > MAX_PATCH )); then
@@ -239,9 +246,10 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Publish patch release and update series tag
+      - name: Publish APK under minor version tag
         env:
           GH_TOKEN: ${{ github.token }}
+          SERIES: ${{ steps.app.outputs.series }}
           SERIES_TAG: ${{ steps.app.outputs.series_tag }}
           APP_VERSION: ${{ steps.app.outputs.version }}
           VERSION_CODE: ${{ steps.app.outputs.version_code }}
@@ -249,24 +257,35 @@ jobs:
           APK_NAME: ${{ steps.app.outputs.apk_name }}
         shell: bash
         run: |
-          PATCH_TAG="v${APP_VERSION}"
           RELEASE_TITLE="$APP_NAME v$APP_VERSION"
-          RELEASE_NOTES=$(printf 'Android APK built automatically from main.\n\nVersion: %s\nAndroid version code: %s\nCommit: %s' "$APP_VERSION" "$VERSION_CODE" "$GITHUB_SHA")
+          RELEASE_NOTES=$(printf 'Android builds for the %s.x release line.\n\nLatest APK: %s v%s\nAndroid version code: %s\nLatest commit: %s\n\nAll %s.x APK builds are available as assets on this release.' "$SERIES" "$APP_NAME" "$APP_VERSION" "$VERSION_CODE" "$GITHUB_SHA" "$SERIES")
 
-          if gh release view "$PATCH_TAG" >/dev/null 2>&1; then
-            gh release edit "$PATCH_TAG" \
+          if gh release view "$SERIES_TAG" >/dev/null 2>&1; then
+            gh release edit "$SERIES_TAG" \
               --title "$RELEASE_TITLE" \
               --notes "$RELEASE_NOTES"
-            gh release upload "$PATCH_TAG" "$APK_NAME" --clobber
           else
-            gh release create "$PATCH_TAG" "$APK_NAME" \
+            gh release create "$SERIES_TAG" \
               --target "$GITHUB_SHA" \
               --title "$RELEASE_TITLE" \
               --notes "$RELEASE_NOTES"
           fi
 
-          # vMAJOR.MINOR is a floating series tag, not a GitHub Release.
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -f "$SERIES_TAG" "$GITHUB_SHA"
-          git push origin "refs/tags/$SERIES_TAG" --force
+          # Keep older patch APKs under the same vMAJOR.MINOR release where available.
+          while IFS= read -r LEGACY_TAG; do
+            if [[ "$LEGACY_TAG" =~ ^v${SERIES//./\.}\.[0-9]+$ ]]; then
+              TMP_DIR=$(mktemp -d)
+              if gh release download "$LEGACY_TAG" --pattern '*.apk' --dir "$TMP_DIR" >/dev/null 2>&1; then
+                for FILE in "$TMP_DIR"/*.apk; do
+                  [[ -e "$FILE" ]] || continue
+                  ASSET_NAME=$(basename "$FILE")
+                  if ! gh release view "$SERIES_TAG" --json assets --jq '.assets[].name' | grep -Fxq "$ASSET_NAME"; then
+                    gh release upload "$SERIES_TAG" "$FILE"
+                  fi
+                done
+              fi
+              rm -rf "$TMP_DIR"
+            fi
+          done < <(gh release list --limit 200 --json tagName --jq '.[].tagName')
+
+          gh release upload "$SERIES_TAG" "$APK_NAME" --clobber
