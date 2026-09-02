@@ -52,6 +52,11 @@ Season impact points use a simplified Dream11-inspired short-format model:
 - Import respects the 30-player bank limit.
 - Duplicate import of the same exported match is blocked.
 
+### Viewer
+- Read-only cloud viewer supports desktop web and mobile PWA layouts.
+- Match scorecards show dismissal details, batting strike rate, bowling figures, extras and over-by-over delivery summaries.
+- Viewer match detail focuses on the scorecard and does not show a separate Match Squads section.
+
 ### Leaderboards
 - Filter by **All Time** or any available season.
 - Top Scorer.
