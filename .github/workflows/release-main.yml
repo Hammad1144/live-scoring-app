@@ -1,0 +1,173 @@
+name: Release Main - Web + APK
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  deploy-web:
+    name: Deploy Viewer Web/PWA
+    runs-on: ubuntu-latest
+    concurrency:
+      group: viewer-pwa-pages
+      cancel-in-progress: true
+    environment:
+      name: viewer-pwa-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout main commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.5
+          cache: npm
+
+      - name: Install project dependencies
+        run: npm ci
+
+      - name: Install Expo web runtime
+        run: npx expo install react-dom react-native-web @expo/metro-runtime -- --no-save
+
+      - name: TypeScript check
+        run: npm run typecheck
+
+      - name: Export web app
+        run: npx expo export -p web
+
+      - name: Disable Jekyll processing
+        run: touch dist/.nojekyll
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  build-apk:
+    name: Build and publish Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout main commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.5
+          cache: npm
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript check
+        run: npm run typecheck
+
+      - name: Prepare release metadata and native Android version
+        id: app
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./app.json').expo.version")
+          BASE_VERSION_CODE=$(node -p "require('./app.json').expo.android.versionCode")
+          APP_NAME=$(node -p "require('./app.json').expo.name")
+          SHORT_SHA="${GITHUB_SHA::7}"
+          BUILD_NUMBER="${GITHUB_RUN_NUMBER}"
+          VERSION_CODE=$((BASE_VERSION_CODE * 100000 + BUILD_NUMBER))
+          RELEASE_TAG="apk-v${VERSION}-build.${BUILD_NUMBER}-${SHORT_SHA}"
+          APK_NAME="${APP_NAME} v${VERSION} build-${BUILD_NUMBER}-${SHORT_SHA}.apk"
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+          echo "app_name=$APP_NAME" >> "$GITHUB_OUTPUT"
+          echo "build_number=$BUILD_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "short_sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "apk_name=$APK_NAME" >> "$GITHUB_OUTPUT"
+
+          python - <<PY
+          from pathlib import Path
+          import re
+
+          path = Path('android/app/build.gradle')
+          text = path.read_text()
+          text, code_count = re.subn(r'versionCode\s+\d+', 'versionCode ${VERSION_CODE}', text, count=1)
+          text, name_count = re.subn(r'versionName\s+"[^"]+"', 'versionName "${VERSION}"', text, count=1)
+          if code_count != 1 or name_count != 1:
+              raise SystemExit('Could not synchronize Android version metadata')
+          path.write_text(text)
+          PY
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x android/gradlew
+
+      - name: Build release APK
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Rename APK
+        run: cp android/app/build/outputs/apk/release/app-release.apk "${{ steps.app.outputs.apk_name }}"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.app.outputs.app_name }} v${{ steps.app.outputs.version }} build-${{ steps.app.outputs.build_number }}
+          path: ${{ steps.app.outputs.apk_name }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish new GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.app.outputs.release_tag }}
+          APP_VERSION: ${{ steps.app.outputs.version }}
+          VERSION_CODE: ${{ steps.app.outputs.version_code }}
+          APP_NAME: ${{ steps.app.outputs.app_name }}
+          APK_NAME: ${{ steps.app.outputs.apk_name }}
+          BUILD_NUMBER: ${{ steps.app.outputs.build_number }}
+          SHORT_SHA: ${{ steps.app.outputs.short_sha }}
+        shell: bash
+        run: |
+          RELEASE_TITLE="$APP_NAME v$APP_VERSION • Build $BUILD_NUMBER"
+          RELEASE_NOTES=$(printf 'Automatically released from main.\n\nApp version: %s\nAndroid version code: %s\nBuild: %s\nCommit: %s' "$APP_VERSION" "$VERSION_CODE" "$BUILD_NUMBER" "$GITHUB_SHA")
+
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" \
+              --target "$GITHUB_SHA" \
+              --title "$RELEASE_TITLE" \
+              --notes "$RELEASE_NOTES"
+            gh release upload "$RELEASE_TAG" "$APK_NAME" --clobber
+          else
+            gh release create "$RELEASE_TAG" "$APK_NAME" \
+              --target "$GITHUB_SHA" \
+              --title "$RELEASE_TITLE" \
+              --notes "$RELEASE_NOTES"
+          fi
