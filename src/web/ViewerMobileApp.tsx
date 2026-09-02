@@ -21,7 +21,6 @@ import {
   getPlayerName,
   getSeasonName,
   getTeamName,
-  inningsScorecard,
   LeaderboardKind,
   matchTitle,
   nullableNumber,
@@ -31,6 +30,7 @@ import {
   textValue,
   ViewerSnapshot,
 } from './viewerData';
+import { viewerInningsScorecard } from './viewerScorecard';
 
 type Section = 'home' | 'seasons' | 'history' | 'players' | 'leaderboards';
 type SeasonTab = 'matches' | 'rankings';
@@ -456,14 +456,6 @@ export function ViewerMobileApp() {
   const renderMatchDetail = (match: SnapshotRow) => {
     const matchId = numberValue(match, 'id');
     const innings = getMatchInnings(snapshot, matchId);
-    const teamIds = [numberValue(match, 'team_a_id'), numberValue(match, 'team_b_id')];
-    const squads = teamIds.map(teamId => ({
-      teamId,
-      name: getTeamName(snapshot, teamId),
-      rows: table(snapshot, 'match_players')
-        .filter(row => numberValue(row, 'match_id') === matchId && numberValue(row, 'team_id') === teamId)
-        .sort((a, b) => numberValue(a, 'batting_order') - numberValue(b, 'batting_order')),
-    }));
 
     return (
       <>
@@ -478,7 +470,7 @@ export function ViewerMobileApp() {
         ) : null}
 
         {innings.map(inn => {
-          const scorecard = inningsScorecard(snapshot, numberValue(inn, 'id'));
+          const scorecard = viewerInningsScorecard(snapshot, numberValue(inn, 'id'));
           return (
             <View key={numberValue(inn, 'id')} style={styles.inningsWrap}>
               <View style={styles.inningsHeader}>
@@ -494,20 +486,22 @@ export function ViewerMobileApp() {
                   <Text style={styles.tableHeader}>B</Text>
                   <Text style={styles.tableHeader}>4</Text>
                   <Text style={styles.tableHeader}>6</Text>
+                  <Text style={styles.tableHeader}>SR</Text>
                 </View>
                 {scorecard.batters.map(row => (
                   <Pressable key={row.playerId} style={styles.tableRow} onPress={() => openPlayer(row.playerId, nullableNumber(match, 'season_id'))}>
                     <View style={styles.batterCol}>
                       <Text style={styles.tableName}>{row.name}</Text>
-                      <Text style={styles.dismissal}>{row.dismissed ? 'out' : 'not out'}</Text>
+                      <Text style={styles.dismissal}>{row.dismissal}</Text>
                     </View>
                     <Text style={styles.tableCell}>{row.runs}</Text>
                     <Text style={styles.tableCell}>{row.balls}</Text>
                     <Text style={styles.tableCell}>{row.fours}</Text>
                     <Text style={styles.tableCell}>{row.sixes}</Text>
+                    <Text style={styles.tableCell}>{row.balls ? ((row.runs / row.balls) * 100).toFixed(0) : '0'}</Text>
                   </Pressable>
                 ))}
-                <Text style={styles.extras}>Extras: {numberValue(inn, 'wides') + numberValue(inn, 'no_balls') + numberValue(inn, 'byes') + numberValue(inn, 'leg_byes')}</Text>
+                <Text style={styles.extras}>Extras: {numberValue(inn, 'wides') + numberValue(inn, 'no_balls') + numberValue(inn, 'byes') + numberValue(inn, 'leg_byes')} (Wd {numberValue(inn, 'wides')}, Nb {numberValue(inn, 'no_balls')}, B {numberValue(inn, 'byes')}, Lb {numberValue(inn, 'leg_byes')})</Text>
               </Card>
 
               <Card>
@@ -529,24 +523,20 @@ export function ViewerMobileApp() {
                   </Pressable>
                 ))}
               </Card>
+
+              <Card>
+                <Text style={styles.tableTitle}>Over-by-over</Text>
+                {scorecard.overs.length === 0 ? <Text style={styles.dismissal}>No deliveries.</Text> : scorecard.overs.map(over => (
+                  <View key={over.overNo} style={styles.overRow}>
+                    <Text style={styles.overNo}>Over {over.overNo}</Text>
+                    <Text style={styles.overBalls}>{over.balls.join('  ')}</Text>
+                  </View>
+                ))}
+              </Card>
             </View>
           );
         })}
 
-        <Text style={styles.sectionTitle}>Match Squads</Text>
-        {squads.map(squad => (
-          <Card key={squad.teamId} style={styles.squadCard}>
-            <Text style={styles.tableTitle}>{squad.name}</Text>
-            {squad.rows.map((row, index) => (
-              <Pressable key={`${squad.teamId}-${numberValue(row, 'player_id')}`} style={styles.squadRow} onPress={() => openPlayer(numberValue(row, 'player_id'), nullableNumber(match, 'season_id'))}>
-                <Text style={styles.squadNo}>{index + 1}</Text>
-                <Text style={styles.squadName}>{textValue(row, 'player_name')}</Text>
-                {numberValue(row, 'is_captain') === 1 ? <Text style={styles.roleBadge}>C</Text> : null}
-                {numberValue(row, 'is_vice_captain') === 1 ? <Text style={styles.roleBadge}>VC</Text> : null}
-              </Pressable>
-            ))}
-          </Card>
-        ))}
       </>
     );
   };
@@ -852,6 +842,9 @@ const styles = StyleSheet.create({
   tableName: { color: colors.text, fontWeight: '800', fontSize: 12 },
   dismissal: { color: colors.muted, fontSize: 10, marginTop: 2 },
   extras: { color: colors.muted, fontSize: 11, marginTop: 12 },
+  overRow: { flexDirection: 'row', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderColor: '#173428' },
+  overNo: { color: colors.primary, fontWeight: '800', width: 62, fontSize: 11 },
+  overBalls: { color: colors.text, flex: 1, fontWeight: '700', fontSize: 12 },
   squadCard: { marginBottom: 2 },
   squadRow: { minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 8, borderBottomWidth: 1, borderBottomColor: '#173428' },
   squadNo: { width: 24, color: colors.muted, fontSize: 10 },

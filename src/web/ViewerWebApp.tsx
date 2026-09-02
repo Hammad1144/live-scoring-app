@@ -22,7 +22,6 @@ import {
   getSeasonName,
   getTeamName,
   inningsScore,
-  inningsScorecard,
   LeaderboardKind,
   matchTitle,
   nullableNumber,
@@ -32,6 +31,7 @@ import {
   textValue,
   ViewerSnapshot,
 } from './viewerData';
+import { viewerInningsScorecard } from './viewerScorecard';
 
 type Section = 'home' | 'seasons' | 'history' | 'players' | 'leaderboards';
 
@@ -480,15 +480,6 @@ export function ViewerWebApp() {
   const renderMatchDetail = (match: SnapshotRow) => {
     const matchId = numberValue(match, 'id');
     const matchInnings = getMatchInnings(snapshot, matchId);
-    const teamA = numberValue(match, 'team_a_id');
-    const teamB = numberValue(match, 'team_b_id');
-    const lineups = [teamA, teamB].map(teamId => ({
-      teamId,
-      name: getTeamName(snapshot, teamId),
-      players: table(snapshot, 'match_players')
-        .filter(row => numberValue(row, 'match_id') === matchId && numberValue(row, 'team_id') === teamId)
-        .sort((a, b) => numberValue(a, 'batting_order') - numberValue(b, 'batting_order')),
-    }));
 
     return (
       <>
@@ -510,7 +501,7 @@ export function ViewerWebApp() {
         </Panel>
 
         {matchInnings.map(inn => {
-          const scorecard = inningsScorecard(snapshot, numberValue(inn, 'id'));
+          const scorecard = viewerInningsScorecard(snapshot, numberValue(inn, 'id'));
           return (
             <View key={`card-${numberValue(inn, 'id')}`}>
               <Text style={styles.subsectionTitle}>{getTeamName(snapshot, numberValue(inn, 'batting_team_id'))} — Innings {numberValue(inn, 'innings_no')}</Text>
@@ -519,49 +510,43 @@ export function ViewerWebApp() {
                   <Text style={styles.tableTitle}>Batting</Text>
                   <View style={styles.tableHeaderRow}>
                     <Text style={[styles.tableHeader, styles.flexOne]}>Player</Text>
-                    <Text style={styles.tableHeaderNum}>R</Text><Text style={styles.tableHeaderNum}>B</Text><Text style={styles.tableHeaderNum}>4s</Text><Text style={styles.tableHeaderNum}>6s</Text>
+                    <Text style={styles.tableHeaderNum}>R</Text><Text style={styles.tableHeaderNum}>B</Text><Text style={styles.tableHeaderNum}>4s</Text><Text style={styles.tableHeaderNum}>6s</Text><Text style={styles.tableHeaderNum}>SR</Text>
                   </View>
                   {scorecard.batters.length ? scorecard.batters.map(row => (
                     <Pressable key={row.playerId} style={styles.dataRow} onPress={() => openPlayer(row.playerId, nullableNumber(match, 'season_id'))}>
-                      <View style={styles.flexOne}><Text style={styles.dataName}>{row.name}</Text><Text style={styles.dataSub}>{row.dismissed ? 'out' : 'not out'}</Text></View>
-                      <Text style={styles.dataNumStrong}>{row.runs}</Text><Text style={styles.dataNum}>{row.balls}</Text><Text style={styles.dataNum}>{row.fours}</Text><Text style={styles.dataNum}>{row.sixes}</Text>
+                      <View style={styles.flexOne}><Text style={styles.dataName}>{row.name}</Text><Text style={styles.dataSub}>{row.dismissal}</Text></View>
+                      <Text style={styles.dataNumStrong}>{row.runs}</Text><Text style={styles.dataNum}>{row.balls}</Text><Text style={styles.dataNum}>{row.fours}</Text><Text style={styles.dataNum}>{row.sixes}</Text><Text style={styles.dataNum}>{row.balls ? ((row.runs / row.balls) * 100).toFixed(0) : '0'}</Text>
                     </Pressable>
                   )) : <Text style={styles.muted}>No batting detail recorded.</Text>}
+                  <Text style={styles.extras}>Extras: {numberValue(inn, 'wides') + numberValue(inn, 'no_balls') + numberValue(inn, 'byes') + numberValue(inn, 'leg_byes')} (Wd {numberValue(inn, 'wides')}, Nb {numberValue(inn, 'no_balls')}, B {numberValue(inn, 'byes')}, Lb {numberValue(inn, 'leg_byes')})</Text>
                 </Panel>
                 <Panel style={styles.flexOne}>
                   <Text style={styles.tableTitle}>Bowling</Text>
                   <View style={styles.tableHeaderRow}>
                     <Text style={[styles.tableHeader, styles.flexOne]}>Player</Text>
-                    <Text style={styles.tableHeaderWide}>O</Text><Text style={styles.tableHeaderNum}>R</Text><Text style={styles.tableHeaderNum}>W</Text>
+                    <Text style={styles.tableHeaderWide}>O</Text><Text style={styles.tableHeaderNum}>R</Text><Text style={styles.tableHeaderNum}>W</Text><Text style={styles.tableHeaderWide}>Econ</Text>
                   </View>
                   {scorecard.bowlers.length ? scorecard.bowlers.map(row => (
                     <Pressable key={row.playerId} style={styles.dataRow} onPress={() => openPlayer(row.playerId, nullableNumber(match, 'season_id'))}>
                       <Text style={[styles.dataName, styles.flexOne]}>{row.name}</Text>
-                      <Text style={styles.dataWide}>{formatOvers(row.legalBalls)}</Text><Text style={styles.dataNum}>{row.runs}</Text><Text style={styles.dataNumStrong}>{row.wickets}</Text>
+                      <Text style={styles.dataWide}>{formatOvers(row.legalBalls)}</Text><Text style={styles.dataNum}>{row.runs}</Text><Text style={styles.dataNumStrong}>{row.wickets}</Text><Text style={styles.dataWide}>{row.legalBalls ? (row.runs / (row.legalBalls / 6)).toFixed(2) : '0.00'}</Text>
                     </Pressable>
                   )) : <Text style={styles.muted}>No bowling detail recorded.</Text>}
                 </Panel>
               </View>
+              <Panel>
+                <Text style={styles.tableTitle}>Over-by-over</Text>
+                {scorecard.overs.length ? scorecard.overs.map(over => (
+                  <View key={over.overNo} style={styles.overRow}>
+                    <Text style={styles.overNo}>Over {over.overNo}</Text>
+                    <Text style={styles.overBalls}>{over.balls.join('  ')}</Text>
+                  </View>
+                )) : <Text style={styles.muted}>No deliveries.</Text>}
+              </Panel>
             </View>
           );
         })}
 
-        <Text style={styles.subsectionTitle}>Match Squads</Text>
-        <View style={[styles.twoColumn, compact && styles.stackGrid]}>
-          {lineups.map(lineup => (
-            <Panel key={lineup.teamId} style={styles.flexOne}>
-              <Text style={styles.tableTitle}>{lineup.name}</Text>
-              {lineup.players.map((row, index) => (
-                <Pressable key={`${lineup.teamId}-${numberValue(row, 'player_id')}`} style={styles.squadRow} onPress={() => openPlayer(numberValue(row, 'player_id'), nullableNumber(match, 'season_id'))}>
-                  <Text style={styles.squadNo}>{index + 1}</Text>
-                  <Text style={styles.squadName}>{textValue(row, 'player_name')}</Text>
-                  {numberValue(row, 'is_captain') === 1 ? <Text style={styles.roleBadge}>C</Text> : null}
-                  {numberValue(row, 'is_vice_captain') === 1 ? <Text style={styles.roleBadge}>VC</Text> : null}
-                </Pressable>
-              ))}
-            </Panel>
-          ))}
-        </View>
       </>
     );
   };
@@ -574,7 +559,7 @@ export function ViewerWebApp() {
     const filtered = matches.filter(match => historySeasonId == null || nullableNumber(match, 'season_id') === historySeasonId);
     return (
       <>
-        <SectionHeader title="Match History" subtitle="Open any match to review the result, innings scorecard and match-day squads." />
+        <SectionHeader title="Match History" subtitle="Open any match to review the result, innings scorecard and over-by-over detail." />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
           <Pill label="All Time" active={historySeasonId == null} onPress={() => setHistorySeasonId(null)} />
           {seasons.map(season => <Pill key={numberValue(season, 'id')} label={textValue(season, 'name')} active={historySeasonId === numberValue(season, 'id')} onPress={() => setHistorySeasonId(numberValue(season, 'id'))} />)}
@@ -945,6 +930,10 @@ const styles = StyleSheet.create({
   dataNum: { width: 34, color: colors.text, fontSize: 10, textAlign: 'right' },
   dataNumStrong: { width: 34, color: colors.primary, fontWeight: '900', fontSize: 11, textAlign: 'right' },
   dataWide: { width: 46, color: colors.text, fontSize: 10, textAlign: 'right' },
+  extras: { color: colors.muted, fontSize: 9, marginTop: 10 },
+  overRow: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 1, borderBottomColor: colors.border, paddingVertical: 7 },
+  overNo: { width: 62, color: colors.primary, fontWeight: '900', fontSize: 9 },
+  overBalls: { flex: 1, color: colors.text, fontSize: 10, fontWeight: '700' },
   squadRow: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
   squadNo: { width: 24, color: colors.muted, fontSize: 9 },
   squadName: { flex: 1, color: colors.text, fontSize: 10, fontWeight: '800' },
