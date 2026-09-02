@@ -1,0 +1,160 @@
+name: One-time Viewer Scorecard Update
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  patch-viewers:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch viewer scorecards
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          def require_replace(text, old, new, label):
+              if old not in text:
+                  raise SystemExit(f'Missing expected block: {label}')
+              return text.replace(old, new, 1)
+
+          # ---------------- Mobile PWA ----------------
+          path = Path('src/web/ViewerMobileApp.tsx')
+          text = path.read_text()
+          text = require_replace(text, "  inningsScorecard,\n", "", 'mobile old scorecard import')
+          text = require_replace(
+              text,
+              "} from './viewerData';\n",
+              "} from './viewerData';\nimport { viewerInningsScorecard } from './viewerScorecard';\n",
+              'mobile scorecard helper import',
+          )
+
+          text, count = re.subn(
+              r"\n    const teamIds = \[numberValue\(match, 'team_a_id'\), numberValue\(match, 'team_b_id'\)\];\n    const squads = teamIds\.map\(teamId => \(\{.*?\n    \}\)\);\n",
+              "\n",
+              text,
+              count=1,
+              flags=re.S,
+          )
+          if count != 1:
+              raise SystemExit('Could not remove mobile squad preparation block')
+
+          text = require_replace(text, 'const scorecard = inningsScorecard(snapshot, numberValue(inn, \'id\'));', 'const scorecard = viewerInningsScorecard(snapshot, numberValue(inn, \'id\'));', 'mobile scorecard call')
+          text = require_replace(text, "                  <Text style={styles.tableHeader}>6</Text>\n", "                  <Text style={styles.tableHeader}>6</Text>\n                  <Text style={styles.tableHeader}>SR</Text>\n", 'mobile SR header')
+          text = require_replace(text, "                      <Text style={styles.dismissal}>{row.dismissed ? 'out' : 'not out'}</Text>\n", "                      <Text style={styles.dismissal}>{row.dismissal}</Text>\n", 'mobile dismissal text')
+          text = require_replace(text, "                    <Text style={styles.tableCell}>{row.sixes}</Text>\n", "                    <Text style={styles.tableCell}>{row.sixes}</Text>\n                    <Text style={styles.tableCell}>{row.balls ? ((row.runs / row.balls) * 100).toFixed(0) : '0'}</Text>\n", 'mobile SR value')
+          text = require_replace(
+              text,
+              "                <Text style={styles.extras}>Extras: {numberValue(inn, 'wides') + numberValue(inn, 'no_balls') + numberValue(inn, 'byes') + numberValue(inn, 'leg_byes')}</Text>\n",
+              "                <Text style={styles.extras}>Extras: {numberValue(inn, 'wides') + numberValue(inn, 'no_balls') + numberValue(inn, 'byes') + numberValue(inn, 'leg_byes')} (Wd {numberValue(inn, 'wides')}, Nb {numberValue(inn, 'no_balls')}, B {numberValue(inn, 'byes')}, Lb {numberValue(inn, 'leg_byes')})</Text>\n",
+              'mobile extras breakdown',
+          )
+
+          mobile_bowling_end = """                {scorecard.bowlers.map(row => (\n                  <Pressable key={row.playerId} style={styles.tableRow} onPress={() => openPlayer(row.playerId, nullableNumber(match, 'season_id'))}>\n                    <Text style={[styles.tableName, styles.batterCol]}>{row.name}</Text>\n                    <Text style={styles.tableCell}>{formatOvers(row.legalBalls)}</Text>\n                    <Text style={styles.tableCell}>{row.runs}</Text>\n                    <Text style={styles.tableCell}>{row.wickets}</Text>\n                    <Text style={styles.tableCell}>{row.legalBalls ? (row.runs / (row.legalBalls / 6)).toFixed(2) : '0.00'}</Text>\n                  </Pressable>\n                ))}\n              </Card>\n"""
+          mobile_bowling_new = mobile_bowling_end + """\n              <Card>\n                <Text style={styles.tableTitle}>Over-by-over</Text>\n                {scorecard.overs.length === 0 ? <Text style={styles.dismissal}>No deliveries.</Text> : scorecard.overs.map(over => (\n                  <View key={over.overNo} style={styles.overRow}>\n                    <Text style={styles.overNo}>Over {over.overNo}</Text>\n                    <Text style={styles.overBalls}>{over.balls.join('  ')}</Text>\n                  </View>\n                ))}\n              </Card>\n"""
+          text = require_replace(text, mobile_bowling_end, mobile_bowling_new, 'mobile over-by-over insertion')
+
+          text, count = re.subn(
+              r"\n        <Text style=\{styles\.sectionTitle\}>Match Squads</Text>\n        \{squads\.map\(squad => \(.*?\n        \)\)\}\n",
+              "\n",
+              text,
+              count=1,
+              flags=re.S,
+          )
+          if count != 1:
+              raise SystemExit('Could not remove mobile Match Squads block')
+
+          text = require_replace(
+              text,
+              "  extras: { color: colors.muted, fontSize: 11, marginTop: 12 },\n",
+              "  extras: { color: colors.muted, fontSize: 11, marginTop: 12 },\n  overRow: { flexDirection: 'row', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderColor: '#173428' },\n  overNo: { color: colors.primary, fontWeight: '800', width: 62, fontSize: 11 },\n  overBalls: { color: colors.text, flex: 1, fontWeight: '700', fontSize: 12 },\n",
+              'mobile over styles',
+          )
+          path.write_text(text)
+
+          # ---------------- Desktop Web ----------------
+          path = Path('src/web/ViewerWebApp.tsx')
+          text = path.read_text()
+          text = require_replace(text, "  inningsScorecard,\n", "", 'web old scorecard import')
+          text = require_replace(
+              text,
+              "} from './viewerData';\n",
+              "} from './viewerData';\nimport { viewerInningsScorecard } from './viewerScorecard';\n",
+              'web scorecard helper import',
+          )
+
+          text, count = re.subn(
+              r"\n    const teamA = numberValue\(match, 'team_a_id'\);\n    const teamB = numberValue\(match, 'team_b_id'\);\n    const lineups = \[teamA, teamB\]\.map\(teamId => \(\{.*?\n    \}\)\);\n",
+              "\n",
+              text,
+              count=1,
+              flags=re.S,
+          )
+          if count != 1:
+              raise SystemExit('Could not remove desktop squad preparation block')
+
+          text = require_replace(text, 'const scorecard = inningsScorecard(snapshot, numberValue(inn, \'id\'));', 'const scorecard = viewerInningsScorecard(snapshot, numberValue(inn, \'id\'));', 'web scorecard call')
+          text = require_replace(text, "                    <Text style={styles.tableHeaderNum}>R</Text><Text style={styles.tableHeaderNum}>B</Text><Text style={styles.tableHeaderNum}>4s</Text><Text style={styles.tableHeaderNum}>6s</Text>\n", "                    <Text style={styles.tableHeaderNum}>R</Text><Text style={styles.tableHeaderNum}>B</Text><Text style={styles.tableHeaderNum}>4s</Text><Text style={styles.tableHeaderNum}>6s</Text><Text style={styles.tableHeaderNum}>SR</Text>\n", 'web SR header')
+          text = require_replace(text, "                      <View style={styles.flexOne}><Text style={styles.dataName}>{row.name}</Text><Text style={styles.dataSub}>{row.dismissed ? 'out' : 'not out'}</Text></View>\n", "                      <View style={styles.flexOne}><Text style={styles.dataName}>{row.name}</Text><Text style={styles.dataSub}>{row.dismissal}</Text></View>\n", 'web dismissal text')
+          text = require_replace(text, "                      <Text style={styles.dataNumStrong}>{row.runs}</Text><Text style={styles.dataNum}>{row.balls}</Text><Text style={styles.dataNum}>{row.fours}</Text><Text style={styles.dataNum}>{row.sixes}</Text>\n", "                      <Text style={styles.dataNumStrong}>{row.runs}</Text><Text style={styles.dataNum}>{row.balls}</Text><Text style={styles.dataNum}>{row.fours}</Text><Text style={styles.dataNum}>{row.sixes}</Text><Text style={styles.dataNum}>{row.balls ? ((row.runs / row.balls) * 100).toFixed(0) : '0'}</Text>\n", 'web SR value')
+          text = require_replace(
+              text,
+              "                  )) : <Text style={styles.muted}>No batting detail recorded.</Text>}\n                </Panel>\n",
+              "                  )) : <Text style={styles.muted}>No batting detail recorded.</Text>}\n                  <Text style={styles.extras}>Extras: {numberValue(inn, 'wides') + numberValue(inn, 'no_balls') + numberValue(inn, 'byes') + numberValue(inn, 'leg_byes')} (Wd {numberValue(inn, 'wides')}, Nb {numberValue(inn, 'no_balls')}, B {numberValue(inn, 'byes')}, Lb {numberValue(inn, 'leg_byes')})</Text>\n                </Panel>\n",
+              'web extras breakdown',
+          )
+          text = require_replace(text, "                    <Text style={styles.tableHeaderWide}>O</Text><Text style={styles.tableHeaderNum}>R</Text><Text style={styles.tableHeaderNum}>W</Text>\n", "                    <Text style={styles.tableHeaderWide}>O</Text><Text style={styles.tableHeaderNum}>R</Text><Text style={styles.tableHeaderNum}>W</Text><Text style={styles.tableHeaderWide}>Econ</Text>\n", 'web economy header')
+          text = require_replace(text, "                      <Text style={styles.dataWide}>{formatOvers(row.legalBalls)}</Text><Text style={styles.dataNum}>{row.runs}</Text><Text style={styles.dataNumStrong}>{row.wickets}</Text>\n", "                      <Text style={styles.dataWide}>{formatOvers(row.legalBalls)}</Text><Text style={styles.dataNum}>{row.runs}</Text><Text style={styles.dataNumStrong}>{row.wickets}</Text><Text style={styles.dataWide}>{row.legalBalls ? (row.runs / (row.legalBalls / 6)).toFixed(2) : '0.00'}</Text>\n", 'web economy value')
+
+          web_bowling_close = """                  )) : <Text style={styles.muted}>No bowling detail recorded.</Text>}\n                </Panel>\n              </View>\n            </View>\n"""
+          web_bowling_new = """                  )) : <Text style={styles.muted}>No bowling detail recorded.</Text>}\n                </Panel>\n              </View>\n              <Panel>\n                <Text style={styles.tableTitle}>Over-by-over</Text>\n                {scorecard.overs.length ? scorecard.overs.map(over => (\n                  <View key={over.overNo} style={styles.overRow}>\n                    <Text style={styles.overNo}>Over {over.overNo}</Text>\n                    <Text style={styles.overBalls}>{over.balls.join('  ')}</Text>\n                  </View>\n                )) : <Text style={styles.muted}>No deliveries.</Text>}\n              </Panel>\n            </View>\n"""
+          text = require_replace(text, web_bowling_close, web_bowling_new, 'web over-by-over insertion')
+
+          text, count = re.subn(
+              r"\n        <Text style=\{styles\.subsectionTitle\}>Match Squads</Text>\n        <View style=\{\[styles\.twoColumn, compact && styles\.stackGrid\]\}>.*?\n        </View>\n",
+              "\n",
+              text,
+              count=1,
+              flags=re.S,
+          )
+          if count != 1:
+              raise SystemExit('Could not remove desktop Match Squads block')
+
+          text = require_replace(
+              text,
+              '        <SectionHeader title="Match History" subtitle="Open any match to review the result, innings scorecard and match-day squads." />\n',
+              '        <SectionHeader title="Match History" subtitle="Open any match to review the result, innings scorecard and over-by-over detail." />\n',
+              'web history subtitle',
+          )
+          text = require_replace(
+              text,
+              "  dataWide: { width: 46, color: colors.text, fontSize: 10, textAlign: 'right' },\n",
+              "  dataWide: { width: 46, color: colors.text, fontSize: 10, textAlign: 'right' },\n  extras: { color: colors.muted, fontSize: 9, marginTop: 10 },\n  overRow: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 1, borderBottomColor: colors.border, paddingVertical: 7 },\n  overNo: { width: 62, color: colors.primary, fontWeight: '900', fontSize: 9 },\n  overBalls: { flex: 1, color: colors.text, fontSize: 10, fontWeight: '700' },\n",
+              'web scorecard detail styles',
+          )
+          path.write_text(text)
+          PY
+
+      - name: Commit scorecard update
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/web/ViewerMobileApp.tsx src/web/ViewerWebApp.tsx
+          if git diff --cached --quiet; then
+            echo "No scorecard changes to commit."
+            exit 0
+          fi
+          git commit -m "Match viewer scorecards with Android experience"
+          git push origin HEAD:main
