@@ -7,7 +7,8 @@ type SquadPlayerRow = {
   battingOrder: number;
 };
 
-const MAX_MATCH_PLAYERS = 11;
+const MAX_MATCH_PLAYERS = 16;
+const MIN_MATCH_PLAYERS = 2;
 
 function unique(ids: number[]) {
   return [...new Set(ids.map(Number))];
@@ -25,8 +26,8 @@ async function loadTeamSquad(db: SQLiteDatabase, teamId: number): Promise<SquadP
 
 function selectedRows(squad: SquadPlayerRow[], selectedIds: number[], teamLabel: string) {
   const ids = unique(selectedIds);
-  if (ids.length < 2) throw new Error(`${teamLabel} needs at least 2 available players.`);
-  if (ids.length > MAX_MATCH_PLAYERS) throw new Error(`${teamLabel} can have at most 11 players in a match.`);
+  if (ids.length < MIN_MATCH_PLAYERS) throw new Error(`${teamLabel} needs at least 2 available players.`);
+  if (ids.length > MAX_MATCH_PLAYERS) throw new Error(`${teamLabel} can have at most 16 available players in a match.`);
   const squadIds = new Set(squad.map(player => player.playerId));
   const invalid = ids.filter(id => !squadIds.has(id));
   if (invalid.length) throw new Error(`${teamLabel} availability contains a player who is no longer in the team.`);
@@ -99,8 +100,12 @@ export async function createMatchWithAvailability(
   const finalA = [...staysA, ...incomingA];
   const finalB = [...staysB, ...incomingB];
 
-  if (finalA.length < 2 || finalB.length < 2) throw new Error('Each team needs at least 2 players after the match-only shuffle.');
-  if (finalA.length > MAX_MATCH_PLAYERS || finalB.length > MAX_MATCH_PLAYERS) throw new Error('Each team can have at most 11 players after the match-only shuffle.');
+  if (finalA.length < MIN_MATCH_PLAYERS || finalB.length < MIN_MATCH_PLAYERS) {
+    throw new Error('Each team needs at least 2 available players after the match-only shuffle.');
+  }
+  if (finalA.length > MAX_MATCH_PLAYERS || finalB.length > MAX_MATCH_PLAYERS) {
+    throw new Error('Each team can have at most 16 available players after the match-only shuffle.');
+  }
   const finalIds = new Set<number>();
   for (const player of [...finalA, ...finalB]) {
     if (finalIds.has(player.playerId)) throw new Error(`${player.name} cannot play for both teams in the same match.`);
@@ -124,7 +129,7 @@ export async function createMatchWithAvailability(
     );
     matchId = Number(result.lastInsertRowId);
 
-    // match_players is the authoritative match-day XI. Permanent Team Bank membership stays in team_players.
+    // match_players is the authoritative match-day roster. Permanent Team Bank membership stays in team_players.
     const insertRoster = async (teamId: number, players: SquadPlayerRow[]) => {
       for (let index = 0; index < players.length; index++) {
         const player = players[index]!;
