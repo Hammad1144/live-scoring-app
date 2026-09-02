@@ -2,18 +2,21 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getMatchPlayers, setNextBowler } from '../data/database';
+import { getMatchPlayers } from '../data/database';
 import {
   getLiveMatchV13 as getLiveMatch,
   undoLastDeliveryV13 as undoLastDelivery,
 } from '../data/v13Core';
 import {
+  canIntroduceNewBatterV16,
+  canIntroduceNewBowlerV16,
   createGuestPlayerForMatch,
   getAvailableBattersV16,
   getAvailableBowlersV16,
   recordDeliveryV16 as recordDelivery,
   retireBatterV16,
   setNextBatterV16,
+  setNextBowlerV16,
 } from '../data/v16Core';
 import { deliveryLabel, formatOvers } from '../logic/cricket';
 import { DeliveryInput, LiveMatch, Player, WicketType } from '../types';
@@ -119,7 +122,7 @@ export function ScoringScreenV16({
         setLive(refreshed);
         if (!refreshed.innings.bowler_id) await openPicker('bowler', refreshed);
       } else {
-        await setNextBowler(db, live.innings.id, p.id);
+        await setNextBowlerV16(db, live.innings.id, p.id);
         setPicker(null);
         await load();
       }
@@ -131,8 +134,20 @@ export function ScoringScreenV16({
 
   const addGuestFromPicker = async () => {
     if (!live || !picker || !guestName.trim() || addingGuest) return;
-    setAddingGuest(true);
     try {
+      const canIntroduce = picker === 'batter'
+        ? await canIntroduceNewBatterV16(db, live.innings.id)
+        : await canIntroduceNewBowlerV16(db, live.innings.id);
+      if (!canIntroduce) {
+        Alert.alert(
+          picker === 'batter' ? 'Batting limit reached' : 'Bowling limit reached',
+          picker === 'batter'
+            ? 'This innings has already used 11 unique batters. No additional batter can be introduced.'
+            : 'This innings has already used 11 unique bowlers. No additional bowler can be introduced.',
+        );
+        return;
+      }
+      setAddingGuest(true);
       const teamId = picker === 'batter' ? live.innings.batting_team_id : live.innings.bowling_team_id;
       const player = await createGuestPlayerForMatch(db, matchId, teamId, guestName);
       setGuestName('');

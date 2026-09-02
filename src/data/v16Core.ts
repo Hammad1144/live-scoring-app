@@ -1,5 +1,5 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
-import { getAvailableBowlers, getMatch, getMatchPlayers } from './database';
+import { getMatch, getMatchPlayers, setNextBowler } from './database';
 import { createMatchV14 } from './v14Core';
 import { createPlayer } from './v12Core';
 import { getMatchDetailV13, recordDeliveryV13 } from './v13Core';
@@ -135,6 +135,60 @@ export async function createGuestPlayerForMatch(
   return player;
 }
 
+const MAX_UNIQUE_BATTERS_PER_INNINGS = 11;
+const MAX_UNIQUE_BOWLERS_PER_INNINGS = 11;
+
+async function usedBatterIdsV16(db: SQLiteDatabase, innings: InningsRow): Promise<Set<number>> {
+  const deliveries = await db.getAllAsync<{
+    strikerId: number | null;
+    nonStrikerId: number | null;
+    dismissedPlayerId: number | null;
+  }>(`
+    SELECT striker_id AS strikerId,
+      non_striker_id AS nonStrikerId,
+      dismissed_player_id AS dismissedPlayerId
+    FROM deliveries
+    WHERE innings_id=?
+  `, innings.id);
+  const retirements = await db.getAllAsync<{ id: number }>(
+    'SELECT player_id AS id FROM innings_retirements WHERE innings_id=?',
+    innings.id,
+  );
+  const used = new Set<number>();
+  const add = (id: number | null | undefined) => { if (id != null) used.add(Number(id)); };
+  add(innings.striker_id);
+  add(innings.non_striker_id);
+  for (const row of deliveries) {
+    add(row.strikerId);
+    add(row.nonStrikerId);
+    add(row.dismissedPlayerId);
+  }
+  for (const row of retirements) add(row.id);
+  return used;
+}
+
+async function usedBowlerIdsV16(db: SQLiteDatabase, innings: InningsRow): Promise<Set<number>> {
+  const rows = await db.getAllAsync<{ id: number }>(
+    'SELECT DISTINCT bowler_id AS id FROM deliveries WHERE innings_id=? AND bowler_id IS NOT NULL',
+    innings.id,
+  );
+  const used = new Set<number>(rows.map(row => Number(row.id)));
+  if (innings.bowler_id != null) used.add(Number(innings.bowler_id));
+  return used;
+}
+
+export async function canIntroduceNewBatterV16(db: SQLiteDatabase, inningsId: number): Promise<boolean> {
+  const innings = await db.getFirstAsync<InningsRow>('SELECT * FROM innings WHERE id=?', inningsId);
+  if (!innings) return false;
+  return (await usedBatterIdsV16(db, innings)).size < MAX_UNIQUE_BATTERS_PER_INNINGS;
+}
+
+export async function canIntroduceNewBowlerV16(db: SQLiteDatabase, inningsId: number): Promise<boolean> {
+  const innings = await db.getFirstAsync<InningsRow>('SELECT * FROM innings WHERE id=?', inningsId);
+  if (!innings) return false;
+  return (await usedBowlerIdsV16(db, innings)).size < MAX_UNIQUE_BOWLERS_PER_INNINGS;
+}
+
 export async function getAvailableBattersV16(db: SQLiteDatabase, inningsId: number): Promise<Player[]> {
   const innings = await db.getFirstAsync<InningsRow>('SELECT * FROM innings WHERE id=?', inningsId);
   if (!innings) return [];
@@ -146,22 +200,39 @@ export async function getAvailableBattersV16(db: SQLiteDatabase, inningsId: numb
   const blocked = new Set<number>([...dismissed.map(x => x.id), ...retired.map(x => x.id)]);
   if (innings.striker_id) blocked.add(Number(innings.striker_id));
   if (innings.non_striker_id) blocked.add(Number(innings.non_striker_id));
+  const used = await usedBatterIdsV16(db, innings);
+  if (used.size >= MAX_UNIQUE_BATTERS_PER_INNINGS) return [];
   const all = await getMatchPlayers(db, innings.match_id, innings.batting_team_id);
   return all.filter(p => !blocked.has(p.id));
 }
 
 export async function getAvailableBowlersV16(db: SQLiteDatabase, inningsId: number): Promise<Player[]> {
-  return getAvailableBowlers(db, inningsId);
+  const innings = await db.getFirstAsync<InningsRow>('SELECT * FROM innings WHERE id=?', inningsId);
+  if (!innings) return [];
+  const all = await getMatchPlayers(db, innings.match_id, innings.bowling_team_id);
+  const used = await usedBowlerIdsV16(db, innings);
+  return all.filter(player =>
+    player.id !== innings.last_bowler_id
+    && (used.has(player.id) || used.size < MAX_UNIQUE_BOWLERS_PER_INNINGS)
+  );
 }
 
 export async function setNextBatterV16(db: SQLiteDatabase, inningsId: number, playerId: number) {
   const innings = await db.getFirstAsync<InningsRow>('SELECT * FROM innings WHERE id=?', inningsId);
   if (!innings) throw new Error('Innings not found.');
   const available = await getAvailableBattersV16(db, inningsId);
-  if (!available.some(p => p.id === playerId)) throw new Error('That batter is not available in this innings.');
+  if (!available.some(p => p.id === playerId)) throw new Error('That batter is not available in this innings. A maximum of 11 unique batters may be used.');
   if (innings.striker_id == null) await db.runAsync('UPDATE innings SET striker_id=? WHERE id=?', playerId, inningsId);
   else if (innings.non_striker_id == null) await db.runAsync('UPDATE innings SET non_striker_id=? WHERE id=?', playerId, inningsId);
   else throw new Error('Both batting ends are already occupied.');
+}
+
+export async function setNextBowlerV16(db: SQLiteDatabase, inningsId: number, playerId: number) {
+  const available = await getAvailableBowlersV16(db, inningsId);
+  if (!available.some(player => player.id === playerId)) {
+    throw new Error('That bowler is not available. A maximum of 11 unique bowlers may be used in an innings.');
+  }
+  await setNextBowler(db, inningsId, playerId);
 }
 
 export async function retireBatterV16(db: SQLiteDatabase, inningsId: number, playerId: number) {

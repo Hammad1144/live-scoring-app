@@ -8,7 +8,8 @@ import { Card, Chip, Empty, PrimaryButton, ScreenHeader, SecondaryButton } from 
 import { colors } from '../theme';
 import type { MatchSetupDraft } from './matchSetupDraft';
 
-const MAX_MATCH_PLAYERS = 11;
+const MAX_MATCH_PLAYERS = 16;
+const MIN_MATCH_PLAYERS = 2;
 
 export function MatchShuffleScreen({
   draft,
@@ -51,12 +52,12 @@ export function MatchShuffleScreen({
 
     const currentSourceCount = fromTeamId === draft.teamAId ? effectiveA : effectiveB;
     const currentTargetCount = toTeamId === draft.teamAId ? effectiveA : effectiveB;
-    if (currentSourceCount <= 2) {
-      Alert.alert('Minimum team size', 'This shuffle would leave fewer than 2 players on the source team.');
+    if (currentSourceCount <= MIN_MATCH_PLAYERS) {
+      Alert.alert('Minimum team size', 'This shuffle would leave fewer than 2 available players on the source team.');
       return;
     }
     if (currentTargetCount >= MAX_MATCH_PLAYERS) {
-      Alert.alert('Maximum match XI', 'This shuffle would create more than 11 players on the receiving team. Move a player the other way or reduce the selected XI first.');
+      Alert.alert('Maximum match squad', 'This shuffle would create more than 16 available players on the receiving team. Move a player the other way or reduce the selected squad first.');
       return;
     }
 
@@ -75,7 +76,8 @@ export function MatchShuffleScreen({
 
   const availableA = teamA.players.filter(player => selectedA.has(player.id));
   const availableB = teamB.players.filter(player => selectedB.has(player.id));
-  const valid = effectiveA >= 2 && effectiveA <= MAX_MATCH_PLAYERS && effectiveB >= 2 && effectiveB <= MAX_MATCH_PLAYERS;
+  const valid = effectiveA >= MIN_MATCH_PLAYERS && effectiveA <= MAX_MATCH_PLAYERS
+    && effectiveB >= MIN_MATCH_PLAYERS && effectiveB <= MAX_MATCH_PLAYERS;
 
   return (
     <View style={styles.root}>
@@ -84,10 +86,10 @@ export function MatchShuffleScreen({
 
         <Card style={styles.infoCard}>
           <Text style={styles.infoTitle}>Lend available players for this match</Text>
-          <Text style={styles.helper}>Shuffle only changes the match roster. Team Bank membership, player identity, career statistics and future matches stay unchanged. Each side must remain between 2 and 11 players.</Text>
+          <Text style={styles.helper}>Shuffle only changes the effective match roster. Team Bank membership, player identity, career statistics and future matches stay unchanged. Each side must remain between 2 and 16 available players.</Text>
           <View style={styles.countRow}>
-            <Text style={styles.countText}>{teamA.name}: {effectiveA}/11</Text>
-            <Text style={styles.countText}>{teamB.name}: {effectiveB}/11</Text>
+            <Text style={styles.countText}>{teamA.name}: {effectiveA}/{MAX_MATCH_PLAYERS}</Text>
+            <Text style={styles.countText}>{teamB.name}: {effectiveB}/{MAX_MATCH_PLAYERS}</Text>
           </View>
         </Card>
 
