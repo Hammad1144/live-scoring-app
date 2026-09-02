@@ -534,7 +534,7 @@ export function ViewerWebApp() {
                   )) : <Text style={styles.muted}>No bowling detail recorded.</Text>}
                 </Panel>
               </View>
-              <Panel>
+              <Panel style={styles.overByOverPanel}>
                 <Text style={styles.tableTitle}>Over-by-over</Text>
                 {scorecard.overs.length ? scorecard.overs.map(over => (
                   <View key={over.overNo} style={styles.overRow}>
@@ -931,6 +931,7 @@ const styles = StyleSheet.create({
   dataNumStrong: { width: 34, color: colors.primary, fontWeight: '900', fontSize: 11, textAlign: 'right' },
   dataWide: { width: 46, color: colors.text, fontSize: 10, textAlign: 'right' },
   extras: { color: colors.muted, fontSize: 9, marginTop: 10 },
+  overByOverPanel: { marginTop: 14 },
   overRow: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 1, borderBottomColor: colors.border, paddingVertical: 7 },
   overNo: { width: 62, color: colors.primary, fontWeight: '900', fontSize: 9 },
   overBalls: { flex: 1, color: colors.text, fontSize: 10, fontWeight: '700' },
