@@ -62,67 +62,20 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-  sync-release-title:
-    name: Sync minor release title
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout main commit
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-
-      - name: Keep vMAJOR.MINOR release title on latest patch
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          CONFIG_VERSION=$(node -p "require('./app.json').expo.version")
-          APP_NAME=$(node -p "require('./app.json').expo.name")
-          IFS='.' read -r MAJOR MINOR CONFIG_PATCH <<< "$CONFIG_VERSION"
-
-          SERIES="${MAJOR}.${MINOR}"
-          SERIES_TAG="v${SERIES}"
-
-          if ! gh release view "$SERIES_TAG" >/dev/null 2>&1; then
-            echo "No $SERIES_TAG release exists yet."
-            exit 0
-          fi
-
-          MAX_PATCH=-1
-          while IFS= read -r ASSET; do
-            if [[ "$ASSET" =~ ^Cricket\.Zone\.App\.v${MAJOR}\.${MINOR}\.([0-9]+)\.apk$ ]]; then
-              PATCH="${BASH_REMATCH[1]}"
-              if (( PATCH > MAX_PATCH )); then
-                MAX_PATCH=$PATCH
-              fi
-            fi
-          done < <(gh release view "$SERIES_TAG" --json assets --jq '.assets[].name')
-
-          if (( MAX_PATCH < 0 )); then
-            echo "No ${SERIES}.x APK asset found on $SERIES_TAG."
-            exit 0
-          fi
-
-          LATEST_VERSION="${MAJOR}.${MINOR}.${MAX_PATCH}"
-          RELEASE_TITLE="$APP_NAME v$LATEST_VERSION"
-          RELEASE_NOTES=$(printf 'Android builds for the %s.x release line.\n\nLatest APK: %s v%s\n\nAll %s.x APK builds are available as assets on this release.' "$SERIES" "$APP_NAME" "$LATEST_VERSION" "$SERIES")
-
-          gh release edit "$SERIES_TAG" \
-            --title "$RELEASE_TITLE" \
-            --notes "$RELEASE_NOTES"
-
   build-apk:
     name: Build and publish Android APK
-    if: ${{ !contains(github.event.head_commit.message, '[release-migration-only]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    concurrency:
+      group: android-release-main
+      cancel-in-progress: false
 
     steps:
       - name: Checkout main commit
         uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -159,52 +112,42 @@ jobs:
           fi
 
           SERIES="${MAJOR}.${MINOR}"
-          SERIES_TAG="v${SERIES}"
-          MAX_PATCH=-1
-          FOUND_EXISTING=false
+          LEGACY_SERIES_TAG="v${SERIES}"
+          MAX_PATCH=$CONFIG_PATCH
 
-          # Read older patch-level releases such as v1.7.1 and v1.7.2.
+          # Current/future release structure: one release and tag per APK build.
           while IFS= read -r TAG; do
             if [[ "$TAG" =~ ^v${MAJOR}\.${MINOR}\.([0-9]+)$ ]]; then
               PATCH="${BASH_REMATCH[1]}"
-              FOUND_EXISTING=true
               if (( PATCH > MAX_PATCH )); then
                 MAX_PATCH=$PATCH
               fi
             fi
           done < <(gh release list --limit 200 --json tagName --jq '.[].tagName')
 
-          # Read APKs already grouped under the minor-series release, e.g. v1.7.
-          if gh release view "$SERIES_TAG" >/dev/null 2>&1; then
+          # Compatibility with the historical grouped vMAJOR.MINOR release.
+          # Read its APK assets only to make sure numbering continues after 1.7.3.
+          if gh release view "$LEGACY_SERIES_TAG" >/dev/null 2>&1; then
             while IFS= read -r ASSET; do
               if [[ "$ASSET" =~ ^Cricket\.Zone\.App\.v${MAJOR}\.${MINOR}\.([0-9]+)\.apk$ ]]; then
                 PATCH="${BASH_REMATCH[1]}"
-                FOUND_EXISTING=true
                 if (( PATCH > MAX_PATCH )); then
                   MAX_PATCH=$PATCH
                 fi
               fi
-            done < <(gh release view "$SERIES_TAG" --json assets --jq '.assets[].name')
+            done < <(gh release view "$LEGACY_SERIES_TAG" --json assets --jq '.assets[].name')
           fi
 
-          if [[ "$FOUND_EXISTING" == "true" ]]; then
-            if (( CONFIG_PATCH > MAX_PATCH )); then
-              MAX_PATCH=$CONFIG_PATCH
-            fi
-            NEXT_PATCH=$((MAX_PATCH + 1))
-          else
-            NEXT_PATCH=$CONFIG_PATCH
-          fi
-
+          NEXT_PATCH=$((MAX_PATCH + 1))
           VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}"
           VERSION_CODE=$((2000000 + MAJOR * 100000 + MINOR * 1000 + NEXT_PATCH))
+          RELEASE_TAG="v${VERSION}"
           APK_NAME="Cricket.Zone.App.v${VERSION}.apk"
 
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
           echo "app_name=$APP_NAME" >> "$GITHUB_OUTPUT"
-          echo "series=$SERIES" >> "$GITHUB_OUTPUT"
-          echo "series_tag=$SERIES_TAG" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
           echo "apk_name=$APK_NAME" >> "$GITHUB_OUTPUT"
 
           VERSION="$VERSION" VERSION_CODE="$VERSION_CODE" node <<'NODE'
@@ -246,46 +189,34 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Publish APK under minor version tag
+      - name: Publish patch-level GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-          SERIES: ${{ steps.app.outputs.series }}
-          SERIES_TAG: ${{ steps.app.outputs.series_tag }}
           APP_VERSION: ${{ steps.app.outputs.version }}
           VERSION_CODE: ${{ steps.app.outputs.version_code }}
           APP_NAME: ${{ steps.app.outputs.app_name }}
+          RELEASE_TAG: ${{ steps.app.outputs.release_tag }}
           APK_NAME: ${{ steps.app.outputs.apk_name }}
         shell: bash
         run: |
           RELEASE_TITLE="$APP_NAME v$APP_VERSION"
-          RELEASE_NOTES=$(printf 'Android builds for the %s.x release line.\n\nLatest APK: %s v%s\nAndroid version code: %s\nLatest commit: %s\n\nAll %s.x APK builds are available as assets on this release.' "$SERIES" "$APP_NAME" "$APP_VERSION" "$VERSION_CODE" "$GITHUB_SHA" "$SERIES")
+          RELEASE_NOTES=$(printf 'Android APK built automatically from main.\n\nVersion: %s\nAndroid version code: %s\nCommit: %s' "$APP_VERSION" "$VERSION_CODE" "$GITHUB_SHA")
 
-          if gh release view "$SERIES_TAG" >/dev/null 2>&1; then
-            gh release edit "$SERIES_TAG" \
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" \
               --title "$RELEASE_TITLE" \
               --notes "$RELEASE_NOTES"
+            gh release upload "$RELEASE_TAG" "$APK_NAME" --clobber
           else
-            gh release create "$SERIES_TAG" \
-              --target "$GITHUB_SHA" \
+            # Create the tag explicitly, then create the release against it.
+            # This keeps tag and build version identical: v1.7.4, v1.7.5, etc.
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag "$RELEASE_TAG" "$GITHUB_SHA"
+            git push origin "refs/tags/$RELEASE_TAG"
+
+            gh release create "$RELEASE_TAG" "$APK_NAME" \
+              --verify-tag \
               --title "$RELEASE_TITLE" \
               --notes "$RELEASE_NOTES"
           fi
-
-          # Keep older patch APKs under the same vMAJOR.MINOR release where available.
-          while IFS= read -r LEGACY_TAG; do
-            if [[ "$LEGACY_TAG" =~ ^v${SERIES//./\.}\.[0-9]+$ ]]; then
-              TMP_DIR=$(mktemp -d)
-              if gh release download "$LEGACY_TAG" --pattern '*.apk' --dir "$TMP_DIR" >/dev/null 2>&1; then
-                for FILE in "$TMP_DIR"/*.apk; do
-                  [[ -e "$FILE" ]] || continue
-                  ASSET_NAME=$(basename "$FILE")
-                  if ! gh release view "$SERIES_TAG" --json assets --jq '.assets[].name' | grep -Fxq "$ASSET_NAME"; then
-                    gh release upload "$SERIES_TAG" "$FILE"
-                  fi
-                done
-              fi
-              rm -rf "$TMP_DIR"
-            fi
-          done < <(gh release list --limit 200 --json tagName --jq '.[].tagName')
-
-          gh release upload "$SERIES_TAG" "$APK_NAME" --clobber
