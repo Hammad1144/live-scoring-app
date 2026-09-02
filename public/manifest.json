@@ -1,6 +1,6 @@
 {
-  "name": "Cricket Zone Viewer",
-  "short_name": "Cricket Zone",
+  "name": "Cricket Zone App",
+  "short_name": "Cricket Zone App",
   "description": "Read-only Cricket Zone viewer for seasons, match history, players and leaderboards.",
   "start_url": "/live-scoring-app/",
   "scope": "/live-scoring-app/",
@@ -10,9 +10,9 @@
   "background_color": "#07130f",
   "icons": [
     {
-      "src": "/live-scoring-app/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/live-scoring-app/icon-192.webp",
+      "sizes": "192x192",
+      "type": "image/webp",
       "purpose": "any maskable"
     }
   ]
